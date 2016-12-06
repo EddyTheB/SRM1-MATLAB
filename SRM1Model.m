@@ -68,7 +68,8 @@ classdef SRM1Model < handle
         BackgroundNOx
         BackgroundNO2
         
-        EmissionFactorsName
+        EmissionFactorClassName
+        EmissionFactorYear
         EmissionFactors
         EmissionFactorApportionment
         StagnantSpeedClass
@@ -141,7 +142,8 @@ classdef SRM1Model < handle
         
         PointTrafficContributionsP = struct.empty;
         RoadNetworkP@SRM1.RoadNetwork
-        EmissionFactorsNameP = 'Dutch'
+        EmissionFactorClassNameP = 'Dutch'
+        EmissionFactorYearP
         BackgroundO3P = 44
         BackgroundPM10P = 0
         BackgroundPM25P = 0
@@ -163,7 +165,10 @@ classdef SRM1Model < handle
             [~, ~, ~, ~, obj.DispersionCoefficients] = SRM1.GetDispersionCoefficients('Narrow Canyon');
             % Get the emission factor catalogue.
             if isequal(obj.EmissionFactorCatalogue, 'NotSet')
-                obj.EmissionFactorCatalogue = EmissionFactorsCat(); %'C:\Users\edward.barratt\Documents\MATLAB\LocalLibrary\Air\EmissionFactors\StandardEmissionFactorCatalogue.efc');
+                [dirEF, ~, ~] = fileparts(which('EmissionFactorsCat'));
+                StandardEFFile = [dirEF, '\ProcessedData\StandardEmissionFactorCatalogue.efc'];
+                obj.EmissionFactorCatalogue = EmissionFactorsCat(StandardEFFile);
+                [obj.EmissionFactorYear, ~] = datevec(now);
             end
         end % function obj = SRM1Model()
         
@@ -337,30 +342,18 @@ classdef SRM1Model < handle
         end % function val = get.PointTrafficContributionsNOx(obj)   
         
         function val = get.EmissionFactors(obj)
-            val = obj.EmissionFactorCatalogue.ApportionedFactorCatalogue.(obj.EmissionFactorsName);
+            AvailableYears = obj.EmissionFactorCatalogue.ApportionedFactorCatalogue.(obj.EmissionFactorClassName).YearVs;
+            if ~ismember(obj.EmissionFactorYear, AvailableYears)
+                error('SRM1Model not fine.')
+            end
+            val = obj.EmissionFactorCatalogue.ApportionedFactorCatalogue.(obj.EmissionFactorClassName);
         end % function val = get.EmissionFactors(obj)
         
+        function val = get.EmissionFactorYear(obj)
+            val = obj.EmissionFactorYearP;
+        end % function val = get.EmissionFactorYear(obj)
+        
         function val = get.EmissionFactorApportionment(obj)
-            if isempty(obj.EmissionFactorCatalogue.FactorApportionment)
-                EFA = struct;
-                EFA.Dutch = struct;
-                EFA.Dutch.Light = {'Car', 'LGV'};
-                EFA.Dutch.Medium = {'RHGV_2X'};
-                EFA.Dutch.Heavy = {'RHGV_3X', 'RHGV_4X', 'AHGV_34X', 'AHGV_5X', 'AHGV_6X'};
-                EFA.Dutch.Bus = {'Bus'};
-                EFA.NAEI = struct;
-                EFA.NAEI.MCycle = {'MCycle'};
-                EFA.NAEI.Car = {'Car'};
-                EFA.NAEI.LGV = {'LGV'};
-                EFA.NAEI.RHGV_2X = {'RHGV_2X'};
-                EFA.NAEI.RHGV_3X = {'RHGV_3X'};
-                EFA.NAEI.RHGV_4X = {'RHGV_4X'};
-                EFA.NAEI.AHGV_34X = {'AHGV_34X'};
-                EFA.NAEI.AHGV_5X = {'AHGV_5X'};
-                EFA.NAEI.AHGV_6X = {'AHGV_6X'};
-                EFA.NAEI.Bus = {'Bus'};
-                obj.EmissionFactorApportionment = EFA;
-            end
             val = obj.EmissionFactorCatalogue.FactorApportionment;
         end % function val = get.EmissionFactorApportionment(obj)
         
@@ -391,8 +384,8 @@ classdef SRM1Model < handle
             val = CAll;
         end % function val = get.RoadConcentrations(obj)
         
-        function val = get.EmissionFactorsName(obj)
-            val = obj.EmissionFactorsNameP;
+        function val = get.EmissionFactorClassName(obj)
+            val = obj.EmissionFactorClassNameP;
         end % function val = get.EmissionFactor(obj)
         
         function val = get.BackgroundO3(obj)
@@ -588,20 +581,33 @@ classdef SRM1Model < handle
             end
         end % function set.RoadNetwork(obj, val)
         
-        function set.EmissionFactorsName(obj, val)
-            if ~isequal(val, obj.EmissionFactorsNameP)
+        function set.EmissionFactorClassName(obj, val)
+            if ~isequal(val, obj.EmissionFactorClassNameP)
                 % First make sure that an emission factor structure with that
                 % name is available in the catalogue.
                 if ~ismember(val, obj.EmissionFactorCatalogue.FactorNames)
-                    error('SRM1:SRM1Model:SetEmissionFactorName_A', 'EmissionFactorsName must be set to one of the available names in the emission factor catalogue.')
+                    error('SRM1:SRM1Model:SetEmissionFactorClassName_A', 'EmissionFactorClassName must be set to one of the available names in the emission factor catalogue.')
                 end
             
-                obj.EmissionFactorsNameP = val;
+                obj.EmissionFactorClassNameP = val;
                 obj.RoadNetwork.EmissionFactors = obj.EmissionFactors;
                 obj.RoadNetworkChangedMinor = 1;
                 obj.SendChanges
             end
-        end % function set.EmissionFactorsName(obj, val)
+        end % function set.EmissionFactorClassName(obj, val)
+        
+        function set.EmissionFactorYear(obj, val)
+            obj.EmissionFactorYearP = val;
+            try
+                obj.RoadNetwork.EmissionFactorYear = val;
+            catch err
+                if ~isequal(err.identifier, 'MATLAB:emptyObjectDotAssignment')
+                    disp(err)
+                    rethrow(err)
+                end
+            end
+            obj.SendChanges
+        end % function val = get.EmissionFactorYear(obj)
         
         function set.EmissionFactorApportionment(obj, val)
             if ~isequal(val, obj.EmissionFactorCatalogue.FactorApportionment)
@@ -615,7 +621,7 @@ classdef SRM1Model < handle
                        
         function set.StagnantSpeedClass(obj, val)
             if ~isequal(val, obj.EmissionFactors.StagnantSpeedClass)
-                obj.EmissionFactorCatalogue.FactorCatalogue.(obj.EmissionFactorsName).StagnantSpeedClass = val;
+                obj.EmissionFactorCatalogue.FactorCatalogue.(obj.EmissionFactorClassName).StagnantSpeedClass = val;
                 obj.RoadNetwork.EmissionFactors = obj.EmissionFactors;
                 obj.RoadNetworkChangedMinor = 1;
                 obj.SendChanges
@@ -743,10 +749,11 @@ classdef SRM1Model < handle
         function ImportRoadNetwork(obj, filename)
             RN = SRM1.RoadNetwork.CreateFromShapeFile(filename, ...
                 'EmissionFactors', obj.EmissionFactors, ...
-                'DispersionCoefficients', obj.DispersionCoefficients);
+                'DispersionCoefficients', obj.DispersionCoefficients, ...
+                'EmissionFactorYear', obj.EmissionFactorYear);
             obj.RoadNetwork = RN;
             try
-                obj.EmissionFactorsName = obj.EmissionFactorsNameP; % This will
+                obj.EmissionFactorClassName = obj.EmissionFactorClassNameP; % This will
                                       % check to make sure that the current
                                       % emission factor can be used with
                                       % this road network.

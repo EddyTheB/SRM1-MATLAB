@@ -29,6 +29,7 @@ classdef RoadSegment < handle
         VehClassesAllowed  % available for this road segment, based on the emission
         SpeedClassesAllowed% factors being used.
         SpeedClassCorrect
+        VehicleBreakdown
         %TunnelConnection = nan
     end % properties
     
@@ -52,7 +53,6 @@ classdef RoadSegment < handle
         Stagnation        % B  and Stagnation are both required. To use NAEI
         SpeedClass        % B  factors only Speed is required.
         TreeFactor        % B        
-        VehicleBreakdown  % C. Depends on VehicleBreakdownName and on PotentialVehMixes.
         VehicleScaling    % B
         VehicleCounts     % B
         VehicleCountsScaled % C. Depends on VehicleScaling and on VehicleCounts.
@@ -104,35 +104,38 @@ classdef RoadSegment < handle
         ParameterBP = 0.6
         ParameterKP = 100
         TrafficContributionsP = struct.empty
+        EmissionFactorYearP
     end
     
     properties (SetAccess = private)
-        VehicleBreakdownName
         FactorType
     end % properties (SetAccess = private)
     
     properties (Hidden)
-        DispersionCoefficientsAll = struct('NarrowCanyon', ...
-                          struct('A', 0.000488, 'B', -0.0308, 'C', 0.59, 'Alpha', 0), ...
-            'WideCanyon', struct('A', 0.000325, 'B', -0.0205, 'C', 0.39, 'Alpha', 0.856), ...
-            'OneSidedCanyon', struct('A', 0.000500, 'B', -0.0316, 'C', 0.57, 'Alpha', 0), ...
-            'NotACanyon', struct('A', 0.000310, 'B', -0.0182, 'C', 0.33, 'Alpha', 0.799))
-        PotentialVehMixes = struct('DFT1', {{'Motorcycle', 'PedalCycle', 'CarsTaxis', 'BusOrCoach', 'LGV', 'RHGV2Ax', 'RHGV3Ax', 'RHGV4or5Ax', 'AHGV3or4Ax', 'AHGV5Ax', 'AHGV6omAx'}}, ...
-            'DFT2', {{'MCycle', 'Car', 'Bus', 'LGV', 'RHGV_2X', 'RHGV_3X', 'RHGV_4X', 'AHGV_34X', 'AHGV_5X', 'AHGV_6X'}}, ...
-            'GGow', {{'MC', 'PC', 'CAR', 'PSV', 'LGV', 'OGV1', 'OGV2'}})
+        DispersionCoefficientsAll
+        NAEIVehMixes = {'PCycle', 'MCycle', 'Car', 'Bus', 'LGV', 'RHGV_2X', 'RHGV_3X', 'RHGV_4X', 'AHGV_34X', 'AHGV_5X', 'AHGV_6X'};
         Creating = 0
         EmissionsBreakdown
         CalculationDistanceModeAllowedValues = {'Road Edge', 'Road Centre'}
     end % properties (Hidden)
+    
+    properties (Dependent, Hidden)
+        EmissionFactorYear
+    end % properties (Dependent, Hidden)
 
     methods
         % Constructor
         function obj = RoadSegment(varargin)
             % Now get the input arguments.
             obj.Creating = 1;
-            Options = struct('Attributes', 'NotSet', 'Number', NaN, 'Parent', 'NotSet', 'EmissionFactors', 'NotSet');
+            Options = struct('Attributes', 'NotSet', 'Number', NaN, 'Parent', 'NotSet', 'EmissionFactors', 'NotSet', 'DispersionCoefficients', 'Default', 'EmissionFactorYear', 'NotSet');
             Options = checkArguments(Options, varargin);
             GotEmissionFactors = 0;
+            if ~isequal('EmissionFactorYear', 'NotSet')
+                [obj.EmissionFactorYearP, ~] = datevec(now);
+            else
+                obj.EmissionFactorYearP = Options.EmissionFactorYear;
+            end
             if ~isequal(Options.Parent, 'NotSet')
                 % A parent RoadNetwork has been set.
                 obj.ParentRoadNetwork = Options.Parent;
@@ -229,76 +232,49 @@ classdef RoadSegment < handle
                     end
                 end
                 if ~GotTFP
-                    warning('SRM1:RoadSegment:NoTreeFactor', 'Road segment has no property ''TreeFactor''; the value will be set to 1.')
+                    [~, lwb] = lastwarn;
+                    if ~isequal(lwb, 'SRM1:RoadSegment:NoTreeFactor')
+                        warning('SRM1:RoadSegment:NoTreeFactor', 'Road segment has no property ''TreeFactor''; the value will be set to 1. This warning may be called repeatedly but will be suppressed.')
+                    end
                     obj.TreeFactor = 1;
                 end
-
-                % Figure out what vehicle breakdown is being used.
-                MixNames = fieldnames(obj.PotentialVehMixes);
-                Score = zeros(1, numel(MixNames));
-                Total = nan(1, numel(MixNames));
-                for Mxi = 1:numel(MixNames)
-                    MixN = MixNames{Mxi};
-                    MixV = obj.PotentialVehMixes.(MixN);
-                    Total(Mxi) = numel(MixV);
-                    for Vi = 1:numel(MixV)
-                        V = MixV{Vi};
-                        try
-                            Options.Attributes.(V);
-                        catch err
-                            if ~isequal(err.identifier, 'MATLAB:nonExistentField')
-                                disp(err)
-                                rethrow(err)
-                            end
-                            continue
-                        end
-                        Score(Mxi) = Score(Mxi) + 1;
-                    end
+                
+                if isequal(Options.DispersionCoefficients, 'Default')
+                    [~, ~, ~, ~, obj.DispersionCoefficientsAll] = SRM1.GetDispersionCoefficients('Narrow Canyon');
+                else
+                    obj.DispersionCoefficientsAll = Options.DispersionCoefficients;
                 end
-                Score = 100*Score./Total;
-                [maxS, maxSi] = max(Score);
-                if maxS < 20
-                    error('The road segment does not appear to include a recognized vehicle class breakdown.')  
-                elseif maxS < 100
-                    MixN = MixNames{maxSi};
-                    MixV = obj.PotentialVehMixes.(MixN);
-                    for Vi = 1:numel(MixV)
-                        V = MixV{Vi};
-                        try
-                            Options.Attributes.(V);
-                        catch err
-                            if ~isequal(err.identifier, 'MATLAB:nonExistentField')
-                                disp(err)
-                                rethrow(err)
-                            end
-                            fprintf('Missing: ''%s''.\n', V)
-                        end
-                    end
-                    %obj.VMixes.(MixNames{maxSi})
-                    warning('Based on the atributes available, the most appropriate vehicle class breakdown is ''%s'', but still only %.0f%% of the vehicles are present.', MixNames{maxSi}, maxS)
-                end
-                obj.VehicleBreakdownName = MixNames{maxSi};
-                % Vehicle Scaling
-                for Vi = 1:numel(obj.VehicleBreakdown)
-                    VS.(obj.VehicleBreakdown{Vi}) = 1;
-                end
-                obj.VehicleScalingP = VS;
-                % Traffic Counts.
+                    
+                % Get the vehicle counts.
                 VehicleCounts_ = struct;
-                for Vi = 1:numel(obj.VehicleBreakdown);
-                    VV = obj.VehicleBreakdown{Vi};
-                    try
-                        VehicleCounts_.(VV) = Options.Attributes.(VV);
-                    catch err
-                        if ~isequal(err.identifier, 'MATLAB:nonExistentField')
-                            disp(err)
-                            rethrow(err)
-                        else
-                            VehicleCounts_.(VV) = 0;
+                for Vi = 1:numel(obj.NAEIVehMixes)
+                    V = obj.NAEIVehMixes{Vi};
+                    VOptions = {V, lower(V), upper(V)};
+                    Got = 0;
+                    for VOi = 1:numel(VOptions)
+                        VO = VOptions{VOi};
+                        if ismember(VO, fieldnames(Options.Attributes))
+                            Got = 1;
+                            VehicleCounts_.(V) = Options.Attributes.(VO);
+                            break
                         end
                     end
+                    if ~Got
+                        if ~isequal(V, 'PCycle')
+                            % No emissions from PCycle anyway.
+                            warning('Missing field for vehicle class ''%s''.', V)
+                        end
+                    end
+                end
+                VehicleBreakdown_ = fieldnames(VehicleCounts_);
+
+                %% Vehicle Scaling
+                for Vi = 1:numel(VehicleBreakdown_)
+                    VS.(VehicleBreakdown_{Vi}) = 1;
                 end
                 obj.VehicleCountsP = VehicleCounts_;
+                obj.VehicleBreakdown = VehicleBreakdown_;
+                obj.VehicleScalingP = VS; % Wally
             end
             if ~isnan(Options.Number)
                 obj.RoadID = Options.Number;
@@ -367,9 +343,9 @@ classdef RoadSegment < handle
             val = obj.TreeFactorP;
         end % function val = get.TreeClass(obj)
         
-        function val = get.VehicleBreakdown(obj)
-            val = obj.PotentialVehMixes.(obj.VehicleBreakdownName);
-        end % function val = get.VehicleBreakdown(obj)
+        %function val = get.VehicleBreakdown(obj)
+        %    val = obj.PotentialVehMixes.(obj.VehicleBreakdownName);
+        %end % function val = get.VehicleBreakdown(obj)
         
         function val = get.VehicleScaling(obj)
             val = obj.VehicleScalingP;
@@ -429,6 +405,10 @@ classdef RoadSegment < handle
             val = Ems;
         end % function val = get.Emissions(obj)        
                 
+        function val = get.EmissionFactorYear(obj)
+            val = obj.EmissionFactorYearP;
+        end % function val = get.EmissionFactorYear(obj)
+        
         function val = get.RoadWidth(obj)
             val = obj.RoadWidthP;
         end % function val = get.RoadWidth(obj)
@@ -627,7 +607,6 @@ classdef RoadSegment < handle
         end % function set.VehicleScaling(obj, val)         
         
         function set.EmissionFactors(obj, val)
-            
             if ~isequal(val, obj.EmissionFactorsP)
                 % First, ensure that if a ParentRoadNetwork is set, that
                 % val is the same value as the emission factors for it.
@@ -654,6 +633,35 @@ classdef RoadSegment < handle
                 obj.SetParentChangesMinor('Emissions')
             end
         end % function set.EmissionFactors(obj, val)
+        
+        function set.EmissionFactorYear(obj, val)
+            if ~isequal(val, obj.EmissionFactorYearP)
+                % First, ensure that if a ParentRoadNetwork is set, that
+                % val is the same value as the emission factors for it.
+                if ~isempty(obj.ParentRoadNetwork)
+                    % A road network exists.
+                    if ~isequal(val, obj.ParentRoadNetwork.EmissionFactorYear)
+                        % It's not the same.
+                        error('SRM1:RoadSegment:SetEmissionFactorYear:NotMatchNetwork', 'Specified EmissionFactorYear does not agree with that for the parent road netwrok.')
+                    end
+                end
+                % Ok, the road network, if any, has allowed us to proceed.
+                %obj.PollutantsAllowed = val.Pollutants;
+                %obj.VehClassesAllowed = val.VehicleClasses;
+                %obj.SpeedClassesAllowed = val.SpeedClasses;
+                %SpeedC = sprintf('S_%03d', obj.Speed);
+                %if ismember(obj.SpeedClass, obj.SpeedClassesAllowed)
+                %    obj.SpeedClassCorrect = obj.SpeedClass;
+                %elseif ismember(SpeedC, obj.SpeedClassesAllowed)
+                %    obj.SpeedClassCorrect = SpeedC;
+                %else
+                %    error('The emission factors cannot deal with a speedclass ''%s'' or a speed ''%.*f''', obj.SpeedClass, DecPlaces(obj.Speed), obj.Speed)
+                %end
+                %obj.EmissionFactorsP = val;
+                obj.EmissionFactorYearP = val;
+                obj.SetParentChangesMinor('Emissions')
+            end
+        end % function set.EmissionFactorYear(obj, val)
         
         function set.RoadWidth(obj, val)
             if ~isequal(val, obj.RoadWidthP)
@@ -792,7 +800,8 @@ classdef RoadSegment < handle
         
         function val = Emit_Single(obj, Pollutant, SpeedC)
             VCS = obj.VehicleCountsScaled;
-            EFS = obj.EmissionFactors.Factors.(Pollutant);
+            YearStr = sprintf('Y%04d', obj.EmissionFactorYear);
+            EFS = obj.EmissionFactors.Factors.(YearStr).(Pollutant);
             EmVehs = obj.EmissionFactors.VehicleClasses;
             NumVehs = numel(obj.VehicleBreakdown);
             Ems = zeros(1, NumVehs);

@@ -33,7 +33,7 @@ function [A, B, C, Alpha, Structure] = GetDispersionCoefficients(StreetClass, va
     % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     Dir = fileparts(which('SRM1.GetDispersionCoefficients'));
-    SF = [Dir, '\DispersionFactors.csv'];
+    SF = [Dir, '\Data\DispersionFactors.csv'];
     Options = struct('SourceFile', SF);
     Options = checkArguments(Options, varargin);
 

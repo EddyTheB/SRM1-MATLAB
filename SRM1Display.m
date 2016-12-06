@@ -28,7 +28,7 @@ classdef SRM1Display < handle
         BackgroundColor
         PlottedRoads
         Pollutant
-        EmissionFactorsName
+        EmissionFactorClassName
         PtSize
         DisplayModelledPointConcentrations
         DisplayBackgroundMap
@@ -191,9 +191,9 @@ classdef SRM1Display < handle
             val = app.Model.Pollutant;
         end % function val = get.Pollutant(app)
         
-        function val = get.EmissionFactorsName(app)
-            val = app.Model.EmissionFactorsName;
-        end % function val = get.EmissionFactorsName(app)
+        function val = get.EmissionFactorClassName(app)
+            val = app.Model.EmissionFactorClassName;
+        end % function val = get.EmissionFactorClassName(app)
         
         function val = get.PtXs(app)
             val = app.Model.CP_X;
@@ -413,13 +413,13 @@ classdef SRM1Display < handle
             app.SendChanges
         end % function set.BackgroundColor(app, val)
         
-        function set.EmissionFactorsName(app, val)
+        function set.EmissionFactorClassName(app, val)
             if ~ismember(val, {'NAEI', 'Dutch'})
-                error('SRM1Display:SetEmissionFactorsName:WrongName', 'Emission factor name must be one of ''NAEI'' or ''Dutch''.')
+                error('SRM1Display:SetEmissionFactorClassName:WrongName', 'Emission factor name must be one of ''NAEI'' or ''Dutch''.')
             end
-            set(app.EMenu.(app.Model.EmissionFactorsName), 'Checked', 'off')
+            set(app.EMenu.(app.Model.EmissionFactorClassName), 'Checked', 'off')
             set(app.EMenu.(val), 'Checked', 'on')
-            app.Model.EmissionFactorsName = val;
+            app.Model.EmissionFactorClassName = val;
             if isequal(val, 'NAEI')
                 set(app.RMenu.Stagnation, 'Enable', 'off');
                 if isequal(app.RoadColorMode, 'Stagnation')
@@ -428,7 +428,7 @@ classdef SRM1Display < handle
             else
                 set(app.RMenu.Stagnation, 'Enable', 'on');
             end
-        end % function set.EmissionFactorsName(app, val)
+        end % function set.EmissionFactorClassName(app, val)
         
         function set.RoadSelectionMode(app, val)
             if ~isequal(val, app.RoadSelectionModeP)
@@ -531,7 +531,7 @@ classdef SRM1Display < handle
                                   1, 0.5, 0; ...  % Orange for normal
                                   0, 0  , 1; ...  % Blue for smooth
                                   0, 1  , 0];     % Green for large roads
-                        switch app.EmissionFactorsName
+                        switch app.EmissionFactorClassName
                             case 'Dutch'
                                 SpeedClasses = app.Model.RoadNetwork.SpeedClasses;
                                 SpeedClassStrings = {'Stagnated', 'Normal City', 'Smooth City', 'Large Roads'};
@@ -1059,8 +1059,8 @@ classdef SRM1Display < handle
              app.EMenu.Menu = uimenu(CMenu, 'Label', 'Emission Factors');
                app.EMenu.NAEI = uimenu(app.EMenu.Menu, 'Label', 'NAEI', 'Checked', 'off', 'Callback', @app.SwitchEmissionFactor);
                app.EMenu.Dutch = uimenu(app.EMenu.Menu, 'Label', 'Dutch', 'Checked', 'off', 'Callback', @app.SwitchEmissionFactor);
-               set(app.EMenu.(app.EmissionFactorsName), 'Checked', 'on')
-               StagOffOn = onOrOff(isequal(app.EmissionFactorsName, 'Dutch'));
+               set(app.EMenu.(app.EmissionFactorClassName), 'Checked', 'on')
+               StagOffOn = onOrOff(isequal(app.EmissionFactorClassName, 'Dutch'));
                
              % Selection Mode
              app.SMenu.Menu = uimenu(CMenu, 'Label', 'Road Selection Mode');
@@ -1232,9 +1232,9 @@ classdef SRM1Display < handle
         function SwitchEmissionFactor(app, Sender, ~)
             switch Sender
                 case app.EMenu.NAEI
-                    app.EmissionFactorsName = 'NAEI';
+                    app.EmissionFactorClassName = 'NAEI';
                 case app.EMenu.Dutch
-                    app.EmissionFactorsName = 'Dutch';
+                    app.EmissionFactorClassName = 'Dutch';
             end
         end % function SwitchEmissionFactor(app, Sender, ~)
         
@@ -1287,7 +1287,7 @@ classdef SRM1Display < handle
             answer = questdlg('Open an existing .srm1 file, or create a new model.', 'Create New Model', 'Open', 'New', 'Cancel', 'Open');
             switch answer
                 case 'New'
-                    % Second, select a shape file.
+                    % Second, select a shape file for the roads.
                     ShapeFile = SRM1Display.GetShapeFile();
                     if isequal(ShapeFile, 0)
                         NewModel = SRM1Display.SetUpMenu();
@@ -1316,7 +1316,7 @@ classdef SRM1Display < handle
                             NewModel.FileLocation = [PP, FF];
                             NewModel.SaveModel;
                             NewModel.CalculatePointTrafficContributions
-                            NewModel.EmissionFactorsName = 'NAEI';
+                            NewModel.EmissionFactorClassName = 'NAEI';
                             NewModel.SaveModel;
                         end
                     end
@@ -1358,6 +1358,7 @@ classdef SRM1Display < handle
                         NewModel = SRM1Display.SpecifyPoints();
                     else
                         ShapeFile = [PP, FF];
+                        which('SRM1Model')
                         NewModel = SRM1Model;
                         NewModel.ImportCalculationPoints(ShapeFile);
                     end

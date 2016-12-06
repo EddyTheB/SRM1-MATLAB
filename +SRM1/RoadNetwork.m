@@ -57,6 +57,7 @@ classdef RoadNetwork < handle
         EmissionsPM25
         EmissionsNOx
         EmissionsNO2
+        EmissionFactorYear
         % The following arrays are also dependent on private arrays with
         % the same name, and are set when RoadSegments is set. However
         % since they are controlled by either the RoadClass property, or
@@ -98,7 +99,7 @@ classdef RoadNetwork < handle
     properties (GetAccess = private, SetAccess = private)
         RoadSegmentsP@SRM1.RoadSegment
         EmissionFactorsP
-        %DispersionCoefficientsP
+        EmissionFactorYearP
         VehicleBreakdownP
         ChangesMadeMajorP = 1
         ChangesMadeMinorP = 1
@@ -152,6 +153,7 @@ classdef RoadNetwork < handle
                                  'SubSetOf', SRM1.RoadNetwork.empty, ...
                                  'RoadSegments', SRM1.RoadSegment.empty, ...
                                  'EmissionFactors', 'Default', ...
+                                 'EmissionFactorYear', 'NotSet', ...
                                  'DispersionCoefficients', 'Default', ...
                                  'VehicleBreakdown', 'NotSet');
                 Options = checkArguments(Options, varargin);
@@ -168,9 +170,14 @@ classdef RoadNetwork < handle
                     warning('RoadNetwork:AABBCC', 'RoadNetwork AABBCC This won''t work.')
                     obj.EmissionFactorsP = EmissionFactorDutch;
                 end
+                if ~isequal('EmissionFactorYear', 'NotSet')
+                    [obj.EmissionFactorYearP, ~] = datevec(now);
+                else
+                    obj.EmissionFactorYearP = Options.EmissionFactorYear;
+                end
                 %if ~isequal(Options.DispersionCoefficients, 'Default')
                 %    % Use the standard dispersion factors.
-                %    [~, ~, ~, ~, obj.DispersionCoefficientsP] = SRM1.GetDispersionCoefficients('Narrow City Canyon');
+                %    [~, ~, ~, ~, obj.DispersionCoefficients] = SRM1.GetDispersionCoefficients('Narrow Canyon');
                 %else
                 %    obj.DispersionCoefficientsP = Options.DispersionCoefficients;
                 %end
@@ -189,6 +196,10 @@ classdef RoadNetwork < handle
         function val = get.EmissionFactors(obj)
             val = obj.EmissionFactorsP;
         end % function val = get.EmissionFactors(obj)
+        
+        function val = get.EmissionFactorYear(obj)
+            val = obj.EmissionFactorYearP;
+        end % function val = get.EmissionFactorYear(obj)
         
         function val = get.VehicleBreakdown(obj)
             if isequal(obj.VehicleBreakdownP, 'NotSet')
@@ -232,7 +243,6 @@ classdef RoadNetwork < handle
         function val = get.ChangesMadeMinor(obj)
             val = obj.ChangesMadeMinorP;
         end % function val = get.ChangesMadeMinor(obj)
-        
         
         function val = get.TreeFactors(obj)
             if numel(obj.TreeFactorsP) ~= obj.NumRoads
@@ -565,6 +575,14 @@ classdef RoadNetwork < handle
                 end
             end
         end % function set.EmissionFactors(obj, val)
+        
+        function set.EmissionFactorYear(obj, val)
+            obj.EmissionFactorYearP = val;
+            % Set all the road segments too.
+            for RI = obj.RoadSegments'
+                RI.EmissionFactorYear = val;
+            end
+        end % function val = set.EmissionFactorYear(obj)
         
         function SetVehicleScaling(obj, Vehs, Scales, varargin)
             Options.Force = false;
@@ -1157,8 +1175,12 @@ classdef RoadNetwork < handle
         function obj = CreateFromShapeFile(filename, varargin)
             
             Options = struct('EmissionFactors', 'Default', ...
-                             'DispersionCoefficients', 'Default');
+                             'DispersionCoefficients', 'Default', ...
+                             'EmissionFactorYear', 'NotSet');
             Options = checkArguments(Options, varargin);
+            if ~isequal('EmissionFactorYear', 'NotSet')
+                [Options.EmissionFactorYear, ~] = datevec(now);
+            end
             % Read the shape file.
             S = shaperead(filename);
             NumFeatures = numel(S);
@@ -1167,7 +1189,7 @@ classdef RoadNetwork < handle
                 if ~isequal(R.Geometry, 'Line')
                     error('SRMI1RoadNetwork:NotLine', 'Features should have line geometry.')
                 end
-                RoadSegment = SRM1.RoadSegment('Attributes', R, 'Number', i, 'EmissionFactors', Options.EmissionFactors);
+                RoadSegment = SRM1.RoadSegment('Attributes', R, 'Number', i, 'EmissionFactors', Options.EmissionFactors, 'EmissionFactorYear', Options.EmissionFactorYear, 'DispersionCoefficient', Options.DispersionCoefficients);
                 if i == 1
                     RoadSegments_ = repmat(RoadSegment, NumFeatures, 1);
                     VBD = RoadSegment.VehicleBreakdown;
@@ -1182,8 +1204,9 @@ classdef RoadNetwork < handle
             obj = SRM1.RoadNetwork('SourceShapeFile', filename, ...
                                    'RoadSegments', RoadSegments_, ...
                                    'EmissionFactors', Options.EmissionFactors, ...
-                                   'DispersionCoefficients', Options.DispersionCoefficients, ...
+                                   'EmissionFactorYear', Options.EmissionFactorYear, ...
                                    'VehicleBreakdown', VBD);
+                                   %'DispersionCoefficients', Options.DispersionCoefficients, ...
         end % function obj = CreateFromShapeFile(filename, varargin)
     end % methods(Static)
 end % classdef RoadNetwork < handle
