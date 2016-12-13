@@ -83,11 +83,8 @@ classdef SRM1Display < handle
     end % properties (Dependent, Hidden)
     
     properties (Hidden)
-        VMenu
         PMenu
-        EMenu
         SMenu
-        RMenu
         EditRoadDialogueWindow
         EditRoadDialogueWindowPosition = [100, 100]
         SettingsDialogueWindow
@@ -194,6 +191,23 @@ classdef SRM1Display < handle
         function val = get.EmissionFactorClassName(app)
             val = app.Model.EmissionFactorClassName;
         end % function val = get.EmissionFactorClassName(app)
+        
+        function set.EmissionFactorClassName(app, val)
+            OldClassName = app.Model.EmissionFactorClassName;
+            if ~isequal(val, OldClassName)
+                app.Model.EmissionFactorClassName = val;
+            end
+            % Should Stagnation be enabled? WALLY
+%             
+%             if isequal(val, 'NAEI')
+%                 set(app.RMenu.Stagnation, 'Enable', 'off');
+%                 if isequal(app.RoadColorMode, 'Stagnation')
+%                     app.RoadColorMode = 'SimpleLine';
+%                 end
+%             else
+%                 set(app.RMenu.Stagnation, 'Enable', 'on');
+%             end
+        end % function set.EmissionFactorClassName(app, val)
         
         function val = get.PtXs(app)
             val = app.Model.CP_X;
@@ -412,23 +426,7 @@ classdef SRM1Display < handle
             app.BackgroundColorP = val;
             app.SendChanges
         end % function set.BackgroundColor(app, val)
-        
-        function set.EmissionFactorClassName(app, val)
-            if ~ismember(val, {'NAEI', 'Dutch'})
-                error('SRM1Display:SetEmissionFactorClassName:WrongName', 'Emission factor name must be one of ''NAEI'' or ''Dutch''.')
-            end
-            set(app.EMenu.(app.Model.EmissionFactorClassName), 'Checked', 'off')
-            set(app.EMenu.(val), 'Checked', 'on')
-            app.Model.EmissionFactorClassName = val;
-            if isequal(val, 'NAEI')
-                set(app.RMenu.Stagnation, 'Enable', 'off');
-                if isequal(app.RoadColorMode, 'Stagnation')
-                    app.RoadColorMode = 'SimpleLine';
-                end
-            else
-                set(app.RMenu.Stagnation, 'Enable', 'on');
-            end
-        end % function set.EmissionFactorClassName(app, val)
+       
         
         function set.RoadSelectionMode(app, val)
             if ~isequal(val, app.RoadSelectionModeP)
@@ -450,7 +448,6 @@ classdef SRM1Display < handle
         
         function set.CalculationDistance(app, val)
             app.Model.CalculationDistance = val;
-            set(app.RMenu.Conc, 'Label', sprintf('Concentration at %d m', app.CalculationDistance))
         end % function set.CalculationDistance(app, val)
         
         function set.CalculationDistanceMode(app, val)
@@ -487,25 +484,24 @@ classdef SRM1Display < handle
                 end
                 app.RoadColorModeP = val;
                 
-                % Turn all ticks off.
-                AllRMenuOptionNames = fieldnames(app.RMenu);
-                AllRMenuOption = nan(1, numel(AllRMenuOptionNames)-1);
-                Rj = 0;
-                for Ri = 1:numel(AllRMenuOptionNames)
-                    R = AllRMenuOptionNames{Ri};
-                    if ~isequal(R, 'Menu')
-                        Rj = Rj + 1;
-                        AllRMenuOption(Rj) = app.RMenu.(R);
-                    end
-                end
-                set(AllRMenuOption, 'Checked', 'off')
+%                 % Turn all ticks off.
+%                 AllRMenuOptionNames = fieldnames(app.RMenu);
+%                 AllRMenuOption = nan(1, numel(AllRMenuOptionNames)-1);
+%                 Rj = 0;
+%                 for Ri = 1:numel(AllRMenuOptionNames)
+%                     R = AllRMenuOptionNames{Ri};
+%                     if ~isequal(R, 'Menu')
+%                         Rj = Rj + 1;
+%                         AllRMenuOption(Rj) = app.RMenu.(R);
+%                     end
+%                 end
+%                 set(AllRMenuOption, 'Checked', 'off')
                 
                 switch val
                     case 'SimpleLine'
                         set(app.PlottedRoads, 'Color', app.StandardRoadColor)
                         RHs = app.PlottedRoads(1);
                         RSs = {'Roads'};
-                        set(app.RMenu.SimpleLine, 'Checked', 'on');
                         ColorsDone = 1;
                     case 'RoadClass'
                         RoadClassStrings = {'Wide Canyon', 'Narrow Canyon', 'One Sided', 'Open Road'};
@@ -525,7 +521,6 @@ classdef SRM1Display < handle
                                 RSs{end+1} = RoadClassStrings{SC}; %#ok<AGROW>
                             end
                         end 
-                        set(app.RMenu.RoadClass, 'Checked', 'on');
                     case 'SpeedClass'
                         Colors = [1, 0.5, 0; ...  % Red for stagnated 
                                   1, 0.5, 0; ...  % Orange for normal
@@ -553,7 +548,6 @@ classdef SRM1Display < handle
                                 RSs{end+1} = SpeedClassStrings{SC}; %#ok<AGROW>
                             end
                         end 
-                        set(app.RMenu.SpeedClass, 'Checked', 'on');
                         ColorsDone = 0;
                     case 'Stagnation'
                         Colors = [0.7, 0.7, 0.9; ...  % Blue Grey
@@ -597,7 +591,6 @@ classdef SRM1Display < handle
                             end
                         end
                         RoadColors = Colors(StagnationClasses, :);
-                        set(app.RMenu.Stagnation, 'Checked', 'on');
                         ColorsDone = 0;
                     case 'Traffic'
                         Colors = [  0,   0, 1; ...    % Blue
@@ -636,7 +629,6 @@ classdef SRM1Display < handle
                         end
                         RSs{end} = sprintf('%s AADF', RSs{end});
                         RoadColors = Colors(TrafficClasses, :);
-                        set(app.RMenu.Traffic, 'Checked', 'on');
                         ColorsDone = 0;
                     case 'Emissions'
                         Colors = [  0,   0, 1; ...    % Blue
@@ -676,7 +668,6 @@ classdef SRM1Display < handle
                         end
                         RSs{end} = sprintf('%s ug/ms', RSs{end});
                         RoadColors = Colors(EmissionClasses, :);                        
-                        set(app.RMenu.Emissions, 'Checked', 'on');
                         ColorsDone = 0;
                     case 'Concentration'
                         Colors = app.CMapRGBs;
@@ -702,7 +693,6 @@ classdef SRM1Display < handle
                         RSs{end} = sprintf('%s ug/m3', RSs{end});
                         ConcentrationClasses(ConcentrationClasses == -999) = 1;
                         RoadColors = Colors(ConcentrationClasses, :);
-                        set(app.RMenu.Conc, 'Checked', 'on');
                         ColorsDone = 0;
                     otherwise
                             error('SRM1Display:SetRoadColorMode:WrongMode', 'RoadColorMode must be one of ''SimpleMode'', ''Concentration'', ''RoadClass'', or ''SpeedClass''.')
@@ -725,10 +715,8 @@ classdef SRM1Display < handle
             if val ~= app.Model.DisplayModelledPointConcentrations
                 if val == 0
                     set(app.PlottedPoints, 'Visible', 'off')
-                    set(app.VMenu.Mod, 'Checked', 'off')
                 elseif val == 1
                     set(app.PlottedPoints, 'Visible', 'on')
-                    set(app.VMenu.Mod, 'Checked', 'on')
                 else
                     error('DisplayADMS:DisplayBackgroundMap:Not0or1', 'DisplayBackgroundMap must be set to 0 or 1.')
                 end
@@ -742,10 +730,8 @@ classdef SRM1Display < handle
             if val ~= app.Model.DisplayRoad
                 if val == 0
                     set(app.PlottedRoads, 'Visible', 'off')
-                    set(app.VMenu.Road, 'Checked', 'off')
                 elseif val == 1
                     set(app.PlottedRoads, 'Visible', 'on')
-                    set(app.VMenu.Road, 'Checked', 'on')
                 else
                     error('DisplayADMS:DisplayRoad:Not0or1', 'DisplayBackgroundMap must be set to 0 or 1.')
                 end
@@ -759,11 +745,7 @@ classdef SRM1Display < handle
         
         function set.DisplayBackgroundMap(app, val)
             if val ~= app.Model.DisplayBackgroundMap
-                if val == 0
-                    set(app.VMenu.Map, 'Checked', 'off')
-                elseif val == 1
-                    set(app.VMenu.Map, 'Checked', 'on')
-                else
+                if ~ismember(val , [0, 1])
                     error('DisplayADMS:DisplayBackgroundMap:Not0or1', 'DisplayBackgroundMap must be set to 0 or 1.')
                 end
                 app.MapView.PlotMapImages = val;
@@ -774,11 +756,7 @@ classdef SRM1Display < handle
         
         function set.DisplayGrid(app, val)
             if val ~= app.Model.DisplayGrid
-                if val == 0
-                    set(app.VMenu.Grid, 'Checked', 'off')
-                elseif val == 1
-                    set(app.VMenu.Grid, 'Checked', 'on')
-                else
+                if ~ismember(val, [0,1])
                     error('DisplayADMS:DisplayGrid:Not0or1', 'DisplayGrid must be set to 0 or 1.')
                 end
                 app.MapView.PlotGridLines = val;
@@ -1035,17 +1013,6 @@ classdef SRM1Display < handle
                uimenu(FMenu, 'Label', 'Export...', 'Accelerator', 'S', 'Separator', 'on', 'Callback', @app.ExportModel, 'Enable', 'on');
 
              CMenu = uimenu(app.Figure, 'Label', 'Control');
-             % View
-             app.VMenu.Menu = uimenu(CMenu, 'Label', 'View');
-               app.VMenu.Mod = uimenu(app.VMenu.Menu, 'Label', 'Modelled Output', 'Checked', onOrOff(app.DisplayModelledPointConcentrations), 'Accelerator', '1', 'Callback', @app.View);
-               if numel(app.PtXs) == 0
-                   set(app.VMenu.Mod, 'Enable', 'off')
-               else
-                   set(app.VMenu.Mod, 'Enable', 'on')
-               end
-               app.VMenu.Road = uimenu(app.VMenu.Menu, 'Label', 'Roads', 'Checked', onOrOff(app.DisplayRoad), 'Accelerator', '2', 'Callback', @app.View);
-               app.VMenu.Map = uimenu(app.VMenu.Menu, 'Label', 'Background Map', 'Checked', onOrOff(app.DisplayBackgroundMap), 'Accelerator', '3', 'Callback', @app.View);
-               app.VMenu.Grid = uimenu(app.VMenu.Menu, 'Label', 'Grid Lines', 'Checked', onOrOff(app.DisplayGrid), 'Accelerator', '4', 'Callback', @app.View);
                
              % Pollutants
              app.PMenu.Menu = uimenu(CMenu, 'Label', 'Pollutant');
@@ -1054,30 +1021,13 @@ classdef SRM1Display < handle
                app.PMenu.PM10 = uimenu(app.PMenu.Menu, 'Label', 'PM10', 'Checked', 'off', 'Callback', @app.SwitchPollutant);
                app.PMenu.PM25 = uimenu(app.PMenu.Menu, 'Label', 'PM2.5', 'Checked', 'off', 'Callback', @app.SwitchPollutant);
                set(app.PMenu.(app.Pollutant), 'Checked', 'on')
-               
-             % Emission Factors
-             app.EMenu.Menu = uimenu(CMenu, 'Label', 'Emission Factors');
-               app.EMenu.NAEI = uimenu(app.EMenu.Menu, 'Label', 'NAEI', 'Checked', 'off', 'Callback', @app.SwitchEmissionFactor);
-               app.EMenu.Dutch = uimenu(app.EMenu.Menu, 'Label', 'Dutch', 'Checked', 'off', 'Callback', @app.SwitchEmissionFactor);
-               set(app.EMenu.(app.EmissionFactorClassName), 'Checked', 'on')
-               StagOffOn = onOrOff(isequal(app.EmissionFactorClassName, 'Dutch'));
-               
+                              
              % Selection Mode
              app.SMenu.Menu = uimenu(CMenu, 'Label', 'Road Selection Mode');
                app.SMenu.Create = uimenu(app.SMenu.Menu, 'Label', 'Create New Selection', 'Checked', 'on', 'Accelerator', 'j', 'Callback', @app.ChangeSelectMode);
                app.SMenu.Append = uimenu(app.SMenu.Menu, 'Label', 'Add To Selection', 'Checked', 'off', 'Accelerator', 'k', 'Callback', @app.ChangeSelectMode);
                app.SMenu.Clear = uimenu(app.SMenu.Menu, 'Label', 'Clear Selection', 'Separator', 'on', 'Accelerator', 'l', 'Callback', @app.ClearSelection);
                
-             % Road Colour Mode
-             app.RMenu.Menu = uimenu(CMenu, 'Label', 'Road Colour Control');
-               app.RMenu.SimpleLine = uimenu(app.RMenu.Menu, 'Label', 'Simple Line', 'Checked', 'on', 'Callback', @app.ChangeRoadColorControl);
-               app.RMenu.RoadClass = uimenu(app.RMenu.Menu, 'Label', 'Road Class', 'Checked', 'off', 'Callback', @app.ChangeRoadColorControl);
-               app.RMenu.SpeedClass = uimenu(app.RMenu.Menu, 'Label', 'Speed Class', 'Checked', 'off', 'Callback', @app.ChangeRoadColorControl);
-               app.RMenu.Stagnation = uimenu(app.RMenu.Menu, 'Label', 'Stagnation Factor', 'Checked', 'off',  'Callback', @app.ChangeRoadColorControl, 'Enable', StagOffOn);
-               app.RMenu.Traffic = uimenu(app.RMenu.Menu, 'Label', 'Total Traffic', 'Checked', 'off',  'Callback', @app.ChangeRoadColorControl);
-               app.RMenu.Emissions = uimenu(app.RMenu.Menu, 'Label', 'Emissions Total', 'Checked', 'off',  'Callback', @app.ChangeRoadColorControl);
-               app.RMenu.Conc = uimenu(app.RMenu.Menu, 'Label', sprintf('Concentration at %d m', app.Model.CalculationDistance), 'Checked', 'off', 'Callback', @app.ChangeRoadColorControl);
-             
              uimenu(CMenu, 'Label', 'Settings', 'Separator', 'on', 'Callback', @app.RaiseSettings)
              
              % Specify a uicontextmenu (right click menu)
@@ -1104,47 +1054,6 @@ classdef SRM1Display < handle
             app.Model.DisplayObject = SRM1Display.empty;
             delete(app.Figure)
         end % function CloseFigure(app, ~, ~)
-        
-        function View(app, Sender, ~)
-            %app.DoPointer('watch'); pause(0.01)
-            switch Sender
-                case app.VMenu.Mod
-                    if isequal(get(app.VMenu.Mod, 'Checked'), 'on')
-                        %ADMSDisplay.Misc.DoPrint(app.Print, app.LogFile, 'Concentration map turned off.\n')
-                        app.DisplayModelledPointConcentrations = 0;
-                    else
-                        %ADMSDisplay.Misc.DoPrint(app.Print, app.LogFile, 'Concentration map turned on.\n')
-                        app.DisplayModelledPointConcentrations = 1;
-                    end
-                case app.VMenu.Map
-                    if isequal(get(app.VMenu.Map, 'Checked'), 'on')
-                        %ADMSDisplay.Misc.DoPrint(app.Print, app.LogFile, 'Background map turned off.\n')
-                        app.DisplayBackgroundMap = 0;
-                    else
-                        %ADMSDisplay.Misc.DoPrint(app.Print, app.LogFile, 'Background map turned on.\n')
-                        app.DisplayBackgroundMap = 1;
-                    end               
-                case app.VMenu.Grid
-                    if isequal(get(app.VMenu.Grid, 'Checked'), 'on')
-                        %ADMSDisplay.Misc.DoPrint(app.Print, app.LogFile, 'Grid lines turned off.\n')
-                        app.DisplayGrid = 0;
-                    else
-                        %ADMSDisplay.Misc.DoPrint(app.Print, app.LogFile, 'Grid lines turned on.\n')
-                        app.DisplayGrid = 1;
-                    end
-                case app.VMenu.Road
-                    if isequal(get(app.VMenu.Road, 'Checked'), 'on')
-                        %ADMSDisplay.Misc.DoPrint(app.Print, app.LogFile, 'Grid lines turned off.\n')
-                        app.DisplayRoad = 0;
-                    else
-                        %ADMSDisplay.Misc.DoPrint(app.Print, app.LogFile, 'Grid lines turned on.\n')
-                        app.DisplayRoad = 1;
-                    end
-                otherwise
-                    warning('Which one?')
-            end
-            %app.DoPointer('arrow'); pause(0.01)
-        end % function View(app, Sender, ~)
         
         function RaiseSettings(app, ~, ~)
             % Will raise a dialogue that allows the background
@@ -1229,15 +1138,6 @@ classdef SRM1Display < handle
             end
         end % function SwitchPollutant(app, Sender, ~)
         
-        function SwitchEmissionFactor(app, Sender, ~)
-            switch Sender
-                case app.EMenu.NAEI
-                    app.EmissionFactorClassName = 'NAEI';
-                case app.EMenu.Dutch
-                    app.EmissionFactorClassName = 'Dutch';
-            end
-        end % function SwitchEmissionFactor(app, Sender, ~)
-        
         function ChangeSelectMode(app, Sender, ~)
             switch Sender
                 case app.SMenu.Create
@@ -1246,27 +1146,6 @@ classdef SRM1Display < handle
                     app.RoadSelectionMode = 'Append';
             end
         end % function ChangeSelectMode(app, Sender, ~)        
-         
-        function ChangeRoadColorControl(app, Sender, ~)
-            switch Sender
-                case app.RMenu.SimpleLine
-                    app.RoadColorMode = 'SimpleLine';
-                case app.RMenu.Conc
-                    app.RoadColorMode = 'Concentration';
-                case app.RMenu.RoadClass
-                    app.RoadColorMode = 'RoadClass';
-                case app.RMenu.SpeedClass
-                    app.RoadColorMode = 'SpeedClass';
-                case app.RMenu.Stagnation
-                    app.RoadColorMode = 'Stagnation';
-                case app.RMenu.Traffic
-                    app.RoadColorMode = 'Traffic';
-                case app.RMenu.Emissions
-                    app.RoadColorMode = 'Emissions';
-                otherwise
-                    error('SRM1Display:ChangeRoadColorControl:UnknownSender', 'Unknown sender for ChangeRoadColorControl.')
-            end
-        end % function ChangeRoadColorControl(app, Sender, ~)
         
         function DoColorMapAndBar(app)
             colormap(app.ColorMap)
@@ -1316,7 +1195,7 @@ classdef SRM1Display < handle
                             NewModel.FileLocation = [PP, FF];
                             NewModel.SaveModel;
                             NewModel.CalculatePointTrafficContributions
-                            NewModel.EmissionFactorClassName = 'NAEI';
+                            NewModel.EmissionFactorClassName = NewModel.EmissionFactorCatalogue.FactorNames{1};
                             NewModel.SaveModel;
                         end
                     end
