@@ -621,13 +621,24 @@ classdef RoadSegment < handle
                 obj.PollutantsAllowed = val.Pollutants;
                 obj.VehClassesAllowed = val.VehicleClasses;
                 obj.SpeedClassesAllowed = val.SpeedClasses;
-                SpeedC = sprintf('S_%03d', obj.Speed);
+                SpeedCOptions = {sprintf('S%d', obj.Speed), sprintf('S%03d', obj.Speed), sprintf('S_%d', obj.Speed), sprintf('S_%03d', obj.Speed)};
                 if ismember(obj.SpeedClass, obj.SpeedClassesAllowed)
                     obj.SpeedClassCorrect = obj.SpeedClass;
-                elseif ismember(SpeedC, obj.SpeedClassesAllowed)
-                    obj.SpeedClassCorrect = SpeedC;
                 else
-                    error('The emission factors cannot deal with a speedclass ''%s'' or a speed ''%.*f''', obj.SpeedClass, DecPlaces(obj.Speed), obj.Speed)
+                    GotSp = 0;
+                    for SpeedCi = 1:numel(SpeedCOptions)
+                        SpeedC = SpeedCOptions{SpeedCi};
+                        if ismember(SpeedC, obj.SpeedClassesAllowed)
+                            obj.SpeedClassCorrect = SpeedC;
+                            GotSp = 1;
+                            break
+                        end
+                    end
+                    if ~GotSp
+                        fprintf('Allowed speed classes:\n')
+                        obj.SpeedClassesAllowed
+                        error('SRM1:RoadSegment:SetEmissionFactors:BadSpeed', 'The emission factors cannot deal with a speedclass ''%s'' or a speed ''%.*f''', obj.SpeedClass, DecPlaces(obj.Speed), obj.Speed)
+                    end
                 end
                 obj.EmissionFactorsP = val;
                 obj.SetParentChangesMinor('Emissions')
@@ -645,23 +656,15 @@ classdef RoadSegment < handle
                         error('SRM1:RoadSegment:SetEmissionFactorYear:NotMatchNetwork', 'Specified EmissionFactorYear does not agree with that for the parent road netwrok.')
                     end
                 end
-                % Ok, the road network, if any, has allowed us to proceed.
-                %obj.PollutantsAllowed = val.Pollutants;
-                %obj.VehClassesAllowed = val.VehicleClasses;
-                %obj.SpeedClassesAllowed = val.SpeedClasses;
-                %SpeedC = sprintf('S_%03d', obj.Speed);
-                %if ismember(obj.SpeedClass, obj.SpeedClassesAllowed)
-                %    obj.SpeedClassCorrect = obj.SpeedClass;
-                %elseif ismember(SpeedC, obj.SpeedClassesAllowed)
-                %    obj.SpeedClassCorrect = SpeedC;
-                %else
-                %    error('The emission factors cannot deal with a speedclass ''%s'' or a speed ''%.*f''', obj.SpeedClass, DecPlaces(obj.Speed), obj.Speed)
-                %end
-                %obj.EmissionFactorsP = val;
                 obj.EmissionFactorYearP = val;
                 obj.SetParentChangesMinor('Emissions')
             end
         end % function set.EmissionFactorYear(obj, val)
+        
+        function SetFactors(obj, Factors, FactorYear)
+            obj.EmissionFactorYearP = FactorYear;
+            obj.EmissionFactors = Factors;
+        end % function SetFactors(obj, Factors, FactorYear)
         
         function set.RoadWidth(obj, val)
             if ~isequal(val, obj.RoadWidthP)

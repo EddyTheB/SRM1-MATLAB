@@ -342,10 +342,6 @@ classdef SRM1Model < handle
         end % function val = get.PointTrafficContributionsNOx(obj)   
         
         function val = get.EmissionFactors(obj)
-            AvailableYears = obj.EmissionFactorCatalogue.ApportionedFactorCatalogue.(obj.EmissionFactorClassName).YearVs;
-            if ~ismember(obj.EmissionFactorYear, AvailableYears)
-                error('SRM1Model not fine.')
-            end
             val = obj.EmissionFactorCatalogue.ApportionedFactorCatalogue.(obj.EmissionFactorClassName);
         end % function val = get.EmissionFactors(obj)
         
@@ -588,23 +584,41 @@ classdef SRM1Model < handle
                 if ~ismember(val, obj.EmissionFactorCatalogue.FactorNames)
                     error('SRM1:SRM1Model:SetEmissionFactorClassName_A', 'EmissionFactorClassName must be set to one of the available names in the emission factor catalogue.')
                 end
-            
+                % Check to see if the current year is ok.
+                AvailableYears = obj.EmissionFactorCatalogue.ApportionedFactorCatalogue.(val).YearVs;
+                if ~ismember(obj.EmissionFactorYear, AvailableYears)
+                    % Find closest year.
+                    [~, minI] = min(abs(AvailableYears - obj.EmissionFactorYear));
+                    goToYear = AvailableYears(minI);
+                    Answer = questdlg(sprintf('Year %04d is not available for the emission factor class ''%s''. Would you like to change to the closest year, %04d?', obj.EmissionFactorYear, val, goToYear));
+                    if isequal(Answer, 'Yes')
+                        obj.EmissionFactorYearP = goToYear;
+                    else
+                        return
+                    end
+                end
                 obj.EmissionFactorClassNameP = val;
-                obj.RoadNetwork.EmissionFactors = obj.EmissionFactors;
+                % obj.RoadNetwork.EmissionFactors = obj.EmissionFactors;
                 obj.RoadNetworkChangedMinor = 1;
                 obj.SendChanges
             end
         end % function set.EmissionFactorClassName(obj, val)
         
         function set.EmissionFactorYear(obj, val)
-            obj.EmissionFactorYearP = val;
-            try
-                obj.RoadNetwork.EmissionFactorYear = val;
-            catch err
-                if ~isequal(err.identifier, 'MATLAB:emptyObjectDotAssignment')
-                    disp(err)
-                    rethrow(err)
+            
+            AvailableYears = obj.EmissionFactorCatalogue.ApportionedFactorCatalogue.(obj.EmissionFactorClassName).YearVs;
+            if ~ismember(val, AvailableYears)
+                % Find closest year.
+                [~, minI] = min(abs(AvailableYears - val));
+                goToYear = AvailableYears(minI);
+                Answer = questdlg(sprintf('Year %04d is not available for the emission factor class ''%s''. Would you like to change to the closest year, %04d?', obj.EmissionFactorYear, obj.EmissionFactorClassName, goToYear));
+                if isequal(Answer, 'Yes')
+                    obj.EmissionFactorYearP = goToYear;
+                else
+                    return
                 end
+            else
+                obj.EmissionFactorYearP = val;
             end
             obj.SendChanges
         end % function val = get.EmissionFactorYear(obj)
@@ -712,6 +726,7 @@ classdef SRM1Model < handle
             if ~isempty(obj.RoadNetwork)
                 obj.RoadNetwork.ResetTrafficContributions;
                 obj.PointTrafficContributionsP = struct.empty;
+                obj.RoadNetwork.SetFactors(obj.EmissionFactors, obj.EmissionFactorYear);
             end
             if ~isempty(obj.DisplayObject)
                 obj.DisplayObject.SendChanges

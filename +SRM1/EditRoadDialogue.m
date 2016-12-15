@@ -636,7 +636,7 @@ classdef EditRoadDialogue < handle
             NumVs = numel(app.VehicleBreakdown);
             IncludedVehs = {};
             % Get the vehicle apportionment details.
-            EFA = app.DisplayObject.Model.EmissionFactorApportionment.(app.DisplayObject.Model.EmissionFactorsName);
+            EFA = app.DisplayObject.Model.EmissionFactorApportionment.(app.DisplayObject.Model.EmissionFactorClassName);
             EFAFNames = fieldnames(EFA);
             for EFAFNamesI = 1:numel(EFAFNames)
                 EFAFName = EFAFNames{EFAFNamesI};

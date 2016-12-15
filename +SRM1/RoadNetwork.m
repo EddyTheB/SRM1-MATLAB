@@ -569,9 +569,6 @@ classdef RoadNetwork < handle
                 catch err
                     disp(err)
                     rethrow(err)
-                    % A thought. Might only be neccesary/appropriate for RI
-                    % == 1.
-                    % obj.EmissionFactorsP = Pre;
                 end
             end
         end % function set.EmissionFactors(obj, val)
@@ -583,6 +580,14 @@ classdef RoadNetwork < handle
                 RI.EmissionFactorYear = val;
             end
         end % function val = set.EmissionFactorYear(obj)
+        
+        function SetFactors(obj, Factors, FactorYear)
+            obj.EmissionFactorYearP = FactorYear;
+            obj.EmissionFactorsP = Factors;
+            for RI = obj.RoadSegments'
+                RI.SetFactors(Factors, FactorYear)
+            end
+        end % function SetFactors(obj, Factors, FactorYear)
         
         function SetVehicleScaling(obj, Vehs, Scales, varargin)
             Options.Force = false;
