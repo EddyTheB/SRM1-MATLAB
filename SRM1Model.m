@@ -823,7 +823,7 @@ classdef SRM1Model < handle
                         try
                             IDs(i) = R.PointID;
                         catch err
-                            if isequal(err.identifier, 'MATLAB:nonExistentField')
+                            if ismember(err.identifier, {'MATLAB:nonExistentField', 'MATLAB:index_assign_element_count_mismatch'})
                                 IDs(i) = i;
                             else
                                 disp(err)
