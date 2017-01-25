@@ -1115,59 +1115,32 @@ classdef SRM1Model < handle
             DispersionFactorG30 = Al.*Distances.^(-0.747);
             DispersionFactor(Distances>30) = DispersionFactorG30(Distances>30);
             FullFactor = 0.62*DispersionFactor.*Tree*5/obj.AverageWindSpeed;
-            FullFactor(3)
             % Get the emissions.
             EmPM10 = obj.PointRoadEmissionPM10;
             EmPM25 = obj.PointRoadEmissionPM25;
             EmNOx = obj.PointRoadEmissionNOx;
             EmNO2 = obj.PointRoadEmissionNO2;
-            EmPM10(3)
             %NitrogenFraction = EmNO2/EmNOx;
             % Calculate the process contributions for each road
             PointConcentrationsPM10 = FullFactor.*EmPM10;
             PointConcentrationsPM25 = FullFactor.*EmPM25;
             PointConcentrationsNOx = FullFactor.*EmNOx;
-
-            PointConcentrationsPM10(3, 1)
-            %PointConcentrationsPM25(3, 1)
-            %PointConcentrationsNOx(3, 1)
             
             % Set nan's to zeros.
             PointConcentrationsPM10(isnan(PointConcentrationsPM10)) = 0;
             PointConcentrationsPM25(isnan(PointConcentrationsPM25)) = 0;
             PointConcentrationsNOx(isnan(PointConcentrationsNOx)) = 0;
-
-%             % Do the NO2 conversion.
-%             CTotalNOx = sum(PointConcentrationsNOx, 2);
-%             FNO = EmNO2./EmNOx;
-%             FNO = FNO.*PointConcentrationsNOx;
-%             FNO(isnan(FNO)) = 0;
-%             FNO = sum(FNO, 2)./CTotalNOx;
-%             LA = FNO.*CTotalNOx;
-%             LB = obj.ParameterB*BGO3*CTotalNOx.*(1 - FNO);
-%             LC = CTotalNOx.*(1 - FNO) + obj.ParameterK;
-%             PointConcentrationsNO2 = LA + LB./LC;
-%             PointConcentrationsNO2(CTotalNOx == 0) = 0;
             
             % Do the NO2 conversion.
             CTotalNOx = sum(PointConcentrationsNOx, 2);
-            CTotalNOx(3)
             FNO = EmNO2./EmNOx;
-            FNO(3, :)
             FNO = FNO.*PointConcentrationsNOx;
-            FNO(3, :)
             FNO(isnan(FNO)) = 0;
-            FNO(3, :)
             FNO = sum(FNO, 2)./CTotalNOx;
-            FNO(3, :)
             LA = FNO.*CTotalNOx;
-            LA(3)
             LB = obj.ParameterB*BGO3*CTotalNOx.*(1 - FNO);
-            LB(3)
             LC = CTotalNOx.*(1 - FNO) + obj.ParameterK;
-            LC(3)
             PointConcentrationsNO2 = LA + LB./LC;
-            PointConcentrationsNO2(3)
             PointConcentrationsNO2(CTotalNOx == 0) = 0;
             
             % And sum the others together.

@@ -155,6 +155,15 @@ classdef RoadSegment < handle
                     Vs = Vs(1:end-1, :);
                 end
                 obj.Vertices = Vs;
+                % Road Name Parameter
+                RoadNamePossibilities = {'Road_Name', 'RoadName'};
+                for RTPi = 1:numel(RoadNamePossibilities)
+                    RTP = RoadTypePossibilities{RTPi};
+                    if ismember(RTP, AttributeNames)
+                        obj.RoadName = Options.Attributes.(RTP);
+                        break
+                    end
+                end
                 % Road Type Parameter
                 RoadTypePossibilities = {'Road_Type', 'RoadType', 'Road_Class', 'RoadClass'}; GotRTP = 0;
                 for RTPi = 1:numel(RoadTypePossibilities)
@@ -166,7 +175,7 @@ classdef RoadSegment < handle
                     end
                 end
                 if ~GotRTP
-                    error('SRM1:RoadSegment:NoRoadType', 'Road segment has no property ''Road_Type''.')
+                    error('SRM1:RoadSegment:NoRoadType', 'Road segment has no property ''RoadType''.')
                 end
                 % Speed Class Parameter
                 GotSPEEDCLASS = 0;

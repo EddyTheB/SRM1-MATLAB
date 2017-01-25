@@ -1281,7 +1281,7 @@ classdef SRM1Display < handle
         function NewModel = SpecifyPoints(ShapeFile)
             % Ask the user if they would like to specify their own points,
             % or create some automatically based on the road network.
-            answer = questdlg('Step 2. Specify calculation points. Would you like to specify a shape file, or would you prefer to create a point network based on the road network.', 'Create New Model', 'Open', 'New', 'None', 'Open');
+            answer = questdlg('Step 2. Specify calculation points. Would you like to specify a shape file, or would you prefer to create a point network based on the road network.', 'Create New Model', 'Open', 'None', 'Open');
             switch answer
                 case 'Open'
                     [FF, PP] = uigetfile('*.shp', 'Select point network.');
@@ -1289,7 +1289,6 @@ classdef SRM1Display < handle
                         NewModel = SRM1Display.SpecifyPoints();
                     else
                         ShapeFile = [PP, FF];
-                        which('SRM1Model')
                         NewModel = SRM1Model;
                         NewModel.ImportCalculationPoints(ShapeFile);
                     end
