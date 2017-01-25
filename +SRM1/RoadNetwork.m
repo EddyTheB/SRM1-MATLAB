@@ -1172,6 +1172,9 @@ classdef RoadNetwork < handle
             obj.TrafficContributionsPM25P = [];
             obj.TrafficContributionsNO2P = [];
             obj.TrafficContributionsNOxP = [];
+            for RSi = 1:obj.NumRoads
+                obj.RoadSegments(RSi).ResetConcentrations
+            end % for RSi = 1:obj.NumRoads
         end % function ResetTrafficContributions(obj)
     end % methods
     

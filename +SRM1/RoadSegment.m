@@ -397,8 +397,10 @@ classdef RoadSegment < handle
                 P = obj.PollutantsAllowed{PI};
                 EE = obj.Emit_Single(P, obj.SpeedClassCorrect);
                 ES = obj.Emit_Single(P, obj.EmissionFactors.StagnantSpeedClass);
-                EE = (1000/(24*3600))*(1 - obj.Stagnation) * EE;
-                ES = (1000/(24*3600))*obj.Stagnation * ES;
+                EE = (1000/(24))*(1 - obj.Stagnation) * EE;
+                ES = (1000/(24))*obj.Stagnation * ES;
+                %EE = (1000/(24*3600))*(1 - obj.Stagnation) * EE;
+                %ES = (1000/(24*3600))*obj.Stagnation * ES;
                 obj.EmissionsBreakdown.(P) = EE + ES;
                 Ems.(P) = sum(EE + ES);
             end
@@ -504,9 +506,13 @@ classdef RoadSegment < handle
             val = VV;
         end % function val = get.ParameterK(obj)
         
+        function ResetConcentrations(obj)
+            obj.TrafficContributionsP = struct.empty;
+        end % function resetConcentrations(obj)
+        
         function val = get.TrafficContributions(obj)
-            obj.CalculationDistanceTotal; % "Getting" this will reset TrafficContributions, if distance hase been changed.
-            obj.WindSpeed;
+            %obj.CalculationDistanceTotal; % "Getting" this will reset TrafficContributions, if distance has been changed.
+            %obj.WindSpeed; % Likewise with windspeed.
             if isempty(obj.TrafficContributionsP)
                 obj.GetTrafficContributions;
             end
@@ -832,6 +838,8 @@ classdef RoadSegment < handle
                 TC.PM10 = 0; TC.PM25 = 0; TC.NOx = 0; TC.NO2 = 0;
                 obj.TrafficContributionsP = TC;
                 return
+            elseif D < 3.5
+                DispersionFactor = DC.A*3.5.^2 + DC.B*3.5 + DC.C;
             elseif D < 30
                 DispersionFactor = DC.A*D.^2 + DC.B*D + DC.C;
             elseif D < 60
@@ -841,13 +849,14 @@ classdef RoadSegment < handle
             end
             FullFactor = 0.62*DispersionFactor.*obj.TreeFactor*5/obj.WindSpeed;
             Ems = obj.Emissions;
+            Ems.PM10
             
             TC.PM10 = FullFactor*Ems.PM10;
             TC.PM25 = FullFactor*Ems.PM25;
             TC.NOx = FullFactor*Ems.NOx;
             
             FNO = Ems.NO2/Ems.NOx;
-            TC_NO2 = FNO*TC.NOx+obj.ParameterB*obj.BackgroundO3*(1-FNO)/(1-FNO+obj.ParameterK);
+            TC_NO2 = FNO*TC.NOx + obj.ParameterB*obj.BackgroundO3*TC.NOx*(1-FNO)/(TC.NOx*(1-FNO)+obj.ParameterK);
             if isnan(TC_NO2)
                 TC.NO2 = 0;
             else

@@ -792,7 +792,7 @@ classdef SRM1Model < handle
                     Pts = nan(NumFeatures, 2);
                     Tps = cell(NumFeatures, 1);
                     Nms = cell(NumFeatures, 1);
-                    IDs = nan(NumFeatures, 2);
+                    IDs = cell(NumFeatures, 1);
                     for i = 1:NumFeatures
                         R = S(i);
                         if ~ismember(R.Geometry, {'Point', 'MultiPoint'})
@@ -821,9 +821,9 @@ classdef SRM1Model < handle
                             end
                         end
                         try
-                            IDs(i) = R.PointID;
+                            IDs{i} = R.PointID;
                         catch err
-                            if ismember(err.identifier, {'MATLAB:nonExistentField', 'MATLAB:index_assign_element_count_mismatch'})
+                            if ismember(err.identifier, {'MATLAB:nonExistentField'})
                                 IDs(i) = i;
                             else
                                 disp(err)
@@ -1115,32 +1115,59 @@ classdef SRM1Model < handle
             DispersionFactorG30 = Al.*Distances.^(-0.747);
             DispersionFactor(Distances>30) = DispersionFactorG30(Distances>30);
             FullFactor = 0.62*DispersionFactor.*Tree*5/obj.AverageWindSpeed;
+            FullFactor(3)
             % Get the emissions.
             EmPM10 = obj.PointRoadEmissionPM10;
             EmPM25 = obj.PointRoadEmissionPM25;
             EmNOx = obj.PointRoadEmissionNOx;
             EmNO2 = obj.PointRoadEmissionNO2;
+            EmPM10(3)
             %NitrogenFraction = EmNO2/EmNOx;
             % Calculate the process contributions for each road
             PointConcentrationsPM10 = FullFactor.*EmPM10;
             PointConcentrationsPM25 = FullFactor.*EmPM25;
             PointConcentrationsNOx = FullFactor.*EmNOx;
 
+            PointConcentrationsPM10(3, 1)
+            %PointConcentrationsPM25(3, 1)
+            %PointConcentrationsNOx(3, 1)
+            
             % Set nan's to zeros.
             PointConcentrationsPM10(isnan(PointConcentrationsPM10)) = 0;
             PointConcentrationsPM25(isnan(PointConcentrationsPM25)) = 0;
             PointConcentrationsNOx(isnan(PointConcentrationsNOx)) = 0;
 
+%             % Do the NO2 conversion.
+%             CTotalNOx = sum(PointConcentrationsNOx, 2);
+%             FNO = EmNO2./EmNOx;
+%             FNO = FNO.*PointConcentrationsNOx;
+%             FNO(isnan(FNO)) = 0;
+%             FNO = sum(FNO, 2)./CTotalNOx;
+%             LA = FNO.*CTotalNOx;
+%             LB = obj.ParameterB*BGO3*CTotalNOx.*(1 - FNO);
+%             LC = CTotalNOx.*(1 - FNO) + obj.ParameterK;
+%             PointConcentrationsNO2 = LA + LB./LC;
+%             PointConcentrationsNO2(CTotalNOx == 0) = 0;
+            
             % Do the NO2 conversion.
             CTotalNOx = sum(PointConcentrationsNOx, 2);
-            NitrogenFraction = EmNO2./EmNOx;
-            NitrogenFraction = NitrogenFraction.*PointConcentrationsNOx;
-            NitrogenFraction(isnan(NitrogenFraction)) = 0;
-            NitrogenFraction = sum(NitrogenFraction, 2)./CTotalNOx;
-            LA = NitrogenFraction.*CTotalNOx;
-            LB = obj.ParameterB*BGO3*CTotalNOx.*(1 - NitrogenFraction);
-            LC = CTotalNOx.*(1 - NitrogenFraction) + obj.ParameterK;
+            CTotalNOx(3)
+            FNO = EmNO2./EmNOx;
+            FNO(3, :)
+            FNO = FNO.*PointConcentrationsNOx;
+            FNO(3, :)
+            FNO(isnan(FNO)) = 0;
+            FNO(3, :)
+            FNO = sum(FNO, 2)./CTotalNOx;
+            FNO(3, :)
+            LA = FNO.*CTotalNOx;
+            LA(3)
+            LB = obj.ParameterB*BGO3*CTotalNOx.*(1 - FNO);
+            LB(3)
+            LC = CTotalNOx.*(1 - FNO) + obj.ParameterK;
+            LC(3)
             PointConcentrationsNO2 = LA + LB./LC;
+            PointConcentrationsNO2(3)
             PointConcentrationsNO2(CTotalNOx == 0) = 0;
             
             % And sum the others together.
@@ -1154,8 +1181,7 @@ classdef SRM1Model < handle
             obj.PointTrafficContributionsP = TCPs;
         end % function CalculatePointTrafficContributions(obj)
         
-        function ExportPointConcentrationShapeFile(obj)
-            
+        function SaveName = ExportName(obj, Q)
             NameMuse = 'NotSet';
             % Choose a file name. The first choice will be based on the
             % model save location, if set...
@@ -1170,24 +1196,121 @@ classdef SRM1Model < handle
             
             if isequal(NameMuse, 'NotSet')
                 SuggestPath = '';
-                SuggestName = 'ExportedPointConcentrations';
+                SuggestName = ['ExportedConcentrations',Q];
             else
                 [pp, ff, ~] = fileparts(NameMuse);
                 SuggestPath = [pp, '\'];
-                SuggestName = [ff, '_ExportedPointConcentrations'];
+                SuggestName = [ff, '_ExportedConcentrations',Q];
             end
             
-            SuggestFName = [SuggestPath, SuggestName, '.shp']; FP = 1;
-            while exist(SuggestFName, 'file') == 2
-                FP = FP + 1;
-                SuggestFName = [SuggestPath, SuggestName, sprintf('(%d).shp', FP)];
-            end
+            SuggestFName = GenerateFileName('Dir', SuggestPath, 'Name', SuggestName, 'Extension', 'shp');
             
             [FN, PN] = uiputfile(SuggestFName, 'Create new concentration shapefile.');
             if isequal(FN, 0)
                 return
             end
             SaveName = [PN, FN];
+        end % function SaveName = ExportName(obj, Q)
+            
+        function ExportRoadConcentrationShapeFile(obj)
+            
+            SaveName = obj.ExportName('Road');
+        
+            Rds = obj.RoadNetwork.RoadSegments;
+            [NumRds, ~] = size(Rds);
+            
+            PCPM10s = obj.RoadTrafficContributionsPM10;
+            PCPM25s = obj.RoadTrafficContributionsPM25;
+            PCNO2s = obj.RoadTrafficContributionsNO2;
+            PCNOxs = obj.RoadTrafficContributionsNOx;
+            BPM10s = obj.RoadBackgroundPM10;
+            BPM25s = obj.RoadBackgroundPM25;
+            BNO2s = obj.RoadBackgroundNO2;
+            BNOxs = obj.RoadBackgroundNOx;
+            BO3s = obj.RoadBackgroundO3;
+            wb = waitbar(0, sprintf('Adding feature for road %d of %d.', 1, NumRds), ...
+                         'CreateCancelBtn', ...
+                         'setappdata(gcbf, ''canceling'',1)');
+            setappdata(wb, 'canceling', 0)
+            for RdI = 1:NumRds
+                if getappdata(wb, 'canceling')
+                    delete(wb)
+                    return
+                end
+                waitbar(RdI/NumRds, wb, sprintf('Adding feature for road %d of %d.', RdI, NumRds))
+                Rd_ = Rds(RdI);
+                Rd = struct();
+                Rd.X = Rd_.Vertices(:,1);
+                Rd.Y = Rd_.Vertices(:,2);
+                Rd.Geometry = 'Line';
+                Rd.RoadID = Rd_.RoadID;
+                Rd.RoadName = Rd_.RoadName;
+                Rd.SpeedClass = Rd_.SpeedClassCorrect;
+                Rd.RoadClass = Rd_.RoadClass;
+                Rd.Stagnation = Rd_.Stagnation;
+                Rd.TreeFactor = Rd_.TreeFactor;
+                Rd.RoadWidth = Rd_.RoadWidth;
+                Rd.CalcDist = Rd_.CalculationDistanceTotal;
+                Rd.PC_PM10 = PCPM10s(RdI);
+                Rd.PC_PM25 = PCPM25s(RdI);
+                Rd.PC_NO2 = PCNO2s(RdI);
+                Rd.PC_NOx = PCNOxs(RdI);
+                Rd.BG_PM10 = BPM10s(RdI);
+                Rd.BG_PM25 = BPM25s(RdI);
+                Rd.BG_NO2 = BNO2s(RdI);
+                Rd.BG_NOx = BNOxs(RdI);
+                Rd.BG_O3 = BO3s(RdI);
+                Rd.TC_PM10 = Rd.PC_PM10 + Rd.BG_PM10;
+                Rd.TC_PM25 = Rd.PC_PM25 + Rd.BG_PM25;
+                Rd.TC_NOx = Rd.PC_NOx + Rd.BG_NOx;
+                Rd.TC_NO2 = Rd.PC_NO2 + Rd.BG_NO2;
+                for vi = 1:numel(Rd_.VehicleBreakdown)
+                    v = Rd_.VehicleBreakdown{vi};
+                    switch v
+                        case 'MCycle'
+                            EEE = 'EmMCy';
+                        case 'Car'
+                            EEE = 'EmCar';
+                        case 'Bus'
+                            EEE = 'EmBus';
+                        case 'LGV'
+                            EEE = 'EmLGV';
+                        case 'RHGV_2X'
+                            EEE = 'EmR2X';
+                        case 'RHGV_3X'
+                            EEE = 'EmR3X';
+                        case 'RHGV_4X'
+                            EEE = 'EmR4X';
+                        case 'AHGV_34X'
+                            EEE = 'EmA4X';
+                        case 'AHGV_5X'
+                            EEE = 'EmA5X';
+                        case 'AHGV_6X'
+                            EEE = 'EmA6X';
+                        otherwise
+                            disp(v)
+                            error(v)
+                    end
+                    Rd.(sprintf('%s_PM10', EEE)) = Rd_.EmissionsBreakdown.PM10(vi);
+                    Rd.(sprintf('%s_PM25', EEE)) = Rd_.EmissionsBreakdown.PM25(vi);
+                    Rd.(sprintf('%s_NOx', EEE)) = Rd_.EmissionsBreakdown.NOx(vi);
+                    Rd.(sprintf('%s_NO2', EEE)) = Rd_.EmissionsBreakdown.NO2(vi);
+                end
+                if RdI == 1
+                    S = repmat(Rd, NumRds, 1);
+                else
+                    S(RdI) = Rd;
+                end
+            end
+            waitbar(1, wb, 'Saving file. Please wait a moment...')
+            shapewrite(S, SaveName)
+            delete(wb)
+        end % function ExportRoadConcentrationShapeFile(obj)
+            
+        function ExportPointConcentrationShapeFile(obj)
+            
+            SaveName = obj.ExportName('Point');
+            
             Pts = obj.CalculationPoints;
             [NumPts, ~] = size(Pts);
             
@@ -1211,11 +1334,11 @@ classdef SRM1Model < handle
                 end
                 waitbar(PtI/NumPts, wb, sprintf('Adding feature for calculation point %d of %d.', PtI, NumPts))
                 Pt = struct();
-                Pt.X = obj.CalculationPoints(PtI, 1);
-                Pt.Y = obj.CalculationPoints(PtI, 2);
+                Pt.X = Pts(PtI, 1);
+                Pt.Y = Pts(PtI, 2);
                 Pt.Geometry = 'point';
                 if numel(obj.CalculationPointID)
-                    Pt.PointID = obj.CalculationPointID(PtI);
+                    Pt.PointID = obj.CalculationPointID{PtI};
                 end
                 if numel(obj.CalculationPointType)
                     Pt.Type = obj.CalculationPointType{PtI};
@@ -1333,10 +1456,16 @@ classdef SRM1Model < handle
                         V = VBD{VI};
                         VS.(V) = varargin{1};
                     end
-                    obj.RoadNetwork.VehicleScaling = VS;
+                    obj.RoadNetwork.SetVehicleScaling(VS);
                 elseif isstruct(varargin{1})
                     try
-                        obj.RoadNetwork.VehicleScaling = varargin{1};
+                        VSStruct = varargin{1};
+                        Vehs = fieldnames(VSStruct);
+                        Vs = nan(1, numel(Vehs));
+                        for Vi = 1:numel(Vehs)
+                            Vs(Vi) = VSStruct.(Vehs{Vi});
+                        end
+                        obj.RoadNetwork.SetVehicleScaling(Vehs, Vs);
                     catch err
                         if isequal(err.identifier, 'SRM1Model:SetVehicleScaling:WrongVehs')
                             VS = obj.VehicleScaling;
@@ -1349,7 +1478,7 @@ classdef SRM1Model < handle
                                 end
                                 VS.(F) = NewScaling.(F);
                             end
-                            obj.RoadNetwork.VehicleScaling = VS;
+                            obj.RoadNetwork.SetVehicleScaling(VS);
                         else
                             rethrow(err)
                         end
@@ -1359,7 +1488,7 @@ classdef SRM1Model < handle
                 end
             else
                 Options = checkArguments(obj.VehicleScaling, varargin);
-                obj.RoadNetwork.VehicleScaling = Options;
+                obj.RoadNetwork.SetVehicleScaling(Options);
             end
         end % function SetVehicleScaling(obj, varargin)
         

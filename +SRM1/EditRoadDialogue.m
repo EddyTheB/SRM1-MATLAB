@@ -135,7 +135,18 @@ classdef EditRoadDialogue < handle
             app.FigHeight.B = RoadPHeightB + 40;
             
             app.Position(4) = app.FigHeight.A;
-            app.Figure = figure('Position', app.Position, ...
+            
+            % To avoid conflicts, all EditRoadDialogues will be assigned a
+            % number between 99800 and 99899.
+            fNum = 99800;
+            while ishghandle(fNum)
+                fNum = fNum + 1;
+                if fNum > 99899
+                    error('SRM1:EditRoadDialogue:fNumTooLarge', 'No available figure numbers left.')
+                end
+            end
+            app.Figure = figure(fNum);
+            set(app.Figure, 'Position', app.Position, ...
                 'ToolBar', 'none',  ...
                 'MenuBar', 'none', ...
                 'Name', 'Edit properties of road section', ...

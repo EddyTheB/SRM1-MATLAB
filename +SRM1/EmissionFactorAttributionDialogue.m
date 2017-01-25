@@ -32,13 +32,13 @@ classdef EmissionFactorAttributionDialogue < handle
     
     properties (Dependent, Hidden)
        EmissionFactorNumber
+       EmissionFactorNames
     end % properties (Dependent, Hidden)
     
     properties (Hidden)
         AllPanel
         FigPosition = [100, 100, 265, 590]
         EmissionDropDown
-        EmissionFactorNames = {'NAEI', 'Dutch'}
         VehicleEmissionControls
         StagnantSpeedClassControl
         ApplyButton
@@ -66,7 +66,7 @@ classdef EmissionFactorAttributionDialogue < handle
                 app.SettingsDialogueObject = Options.SettingsDialogueObject;
             end 
             if isequal(Options.EmissionFactorName, 'NotSet')
-                app.EmissionFactorNameP = app.ModelObject.EmissionFactorsName;
+                app.EmissionFactorNameP = app.ModelObject.EmissionFactorClassName;
             else
                 app.EmissionFactorNameP = Options.EmissionFactorName;
             end
@@ -76,7 +76,7 @@ classdef EmissionFactorAttributionDialogue < handle
             else
                 error('Position should be a 2 value vector.')
             end
-            app.EmissionFactorNameP = app.ModelObject.EmissionFactorsName;
+            app.EmissionFactorNameP = app.ModelObject.EmissionFactorClassName;
             
             PanelHeight = 30*app.NumVehicles + 95;
             app.FigPosition(4) = PanelHeight+20;
@@ -183,7 +183,10 @@ classdef EmissionFactorAttributionDialogue < handle
             val{end+1} = 'Ignore';
         end % function val = get.EmissionVehicleBreakdown(app)
         
-                
+        function val = get.EmissionFactorNames(app)
+            val = app.EmissionFactorCatalogue.FactorNames;
+        end % function val = get.EmissionFactorNames(app)
+        
         function val = get.SpeedClasses(app)
             val = app.EmissionFactorCatalogue.FactorCatalogue.(app.EmissionFactorName).SpeedClasses;
             val{end+1} = 'Ignore';
@@ -221,25 +224,27 @@ classdef EmissionFactorAttributionDialogue < handle
             set(app.EmissionDropDown, 'Value', app.EmissionFactorNumber)
             set(app.StagnantSpeedClassControl, 'String', app.SpeedClasses, 'Value', app.StagnantSpeedClassNumber)
             for vi = 1:app.NumVehicles
-                Veh = app.CountVehicleBreakdown{vi};
+                Veh = app.CountVehicleBreakdown{vi}
                 [~, VValue] = ismember('Ignore', app.EmissionVehicleBreakdown);
                 for EVBi = 1:numel(app.EmissionVehicleBreakdown)
-                    EVeh = app.EmissionVehicleBreakdown{EVBi};
+                    EVeh = app.EmissionVehicleBreakdown{EVBi}
                     try
-                        EVehs = app.EmissionFactorApportionment.(app.EmissionFactorName).(EVeh);
+                        EVehs = app.EmissionFactorApportionment.(app.EmissionFactorName).(EVeh)
                     catch E
                         if ~isequal(E.identifier, 'MATLAB:nonExistentField')
                             disp(E)
                             rethrow(E)
                         else
+                            'xxx'
                             continue
                         end
                     end
                     if ismember(Veh, EVehs)
-                        VValue = EVBi;
+                        VValue = EVBi
                         break
                     end
                 end
+                VValue
                 set(app.VehicleEmissionControls(vi), 'string', app.EmissionVehicleBreakdown, 'value', VValue)
             end
         end % function SetValues(app)
@@ -266,8 +271,8 @@ classdef EmissionFactorAttributionDialogue < handle
         end
         
         function [EFA_New, SameAP, SSC_New, SameSSC] = CheckChanges(app)
-            EFA_New = app.GetApportionment;
-            EFA_Old = app.EmissionFactorApportionment.(app.EmissionFactorName);
+            EFA_New = app.GetApportionment
+            EFA_Old = app.EmissionFactorApportionment.(app.EmissionFactorName)
             SameAP = isequal(EFA_New, EFA_Old);
             SSC_New = app.SpeedClasses{get(app.StagnantSpeedClassControl, 'Value')};
             SSC_Old = app.EmissionFactorCatalogue.FactorCatalogue.(app.EmissionFactorName).StagnantSpeedClass;

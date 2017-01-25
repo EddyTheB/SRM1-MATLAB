@@ -70,6 +70,7 @@ classdef SRM1Display < handle
         RdYMins
         RdYMaxs
         RdExtents
+        FullExtents
         PointConcentrations
         RoadConcentrations
         CAxisLimits
@@ -83,6 +84,7 @@ classdef SRM1Display < handle
     end % properties (Dependent, Hidden)
     
     properties (Hidden)
+        FMenu
         PMenu
         SMenu
         EditRoadDialogueWindow
@@ -241,16 +243,42 @@ classdef SRM1Display < handle
             val = [min(app.RdXMins), max(app.RdXMaxs), min(app.RdYMins), max(app.RdYMaxs)];
         end % function val = get.RdExtents(app)
         
+        function val = get.FullExtents(app)
+            AreRds = app.Model.NumRoads > 0;
+            ArePts = app.Model.NumPoints > 0;
+            if AreRds && ArePts
+                minP = min([app.RdExtents; app.PtExtents]);
+                maxP = max([app.RdExtents; app.PtExtents]);
+                Ex = [minP(1), maxP(2), minP(3), maxP(4)];    
+            elseif AreRds
+                Ex = app.RdExtents;
+            elseif ArePts
+                Ex = app.PtExtents;
+            else
+                error('SRM1Display:GetFullExtents:NoRoadsOrPoints', 'No roads or calculation points are specified yet.')
+            end
+            Ex(1) = floor(Ex(1));
+            Ex(2) = ceil(Ex(2));
+            Ex(3) = floor(Ex(3));
+            Ex(4) = ceil(Ex(4));
+            val = Ex;
+        end % function val = get.FullExtents(app)
+        
         function val = get.SetMapExtents(app)
             XRange2 = (app.RdExtents(2) - app.RdExtents(1))/2;
             YRange2 = (app.RdExtents(4) - app.RdExtents(3))/2;
             XMid = mean([app.RdExtents(2), app.RdExtents(1)]);
             YMid = mean([app.RdExtents(4), app.RdExtents(3)]);
             if XRange2 > YRange2
-                val = [XMid - YRange2, XMid + YRange2, YMid - YRange2, YMid + YRange2];
+                Ex = [XMid - YRange2, XMid + YRange2, YMid - YRange2, YMid + YRange2];
             else
-                val = [XMid - XRange2, XMid + XRange2, YMid - XRange2, YMid + XRange2];
+                Ex = [XMid - XRange2, XMid + XRange2, YMid - XRange2, YMid + XRange2];
             end
+            Ex(1) = floor(Ex(1));
+            Ex(2) = ceil(Ex(2));
+            Ex(3) = floor(Ex(3));
+            Ex(4) = ceil(Ex(4));
+            val = Ex;
         end % function val = get.SetMapExtents(app)
         
         function val = get.PointConcentrations(app)
@@ -737,9 +765,6 @@ classdef SRM1Display < handle
                 end
                 app.Model.DisplayRoad = val;
                 app.SendChanges
-%                 if ~isempty(app.SettingsDialogueWindow) && ishghandle(app.SettingsDialogueWindow.Figure)
-%                     app.SettingsDialogueWindow.FillValues
-%                 end
             end
         end % function set.DisplayRoad(app, val)
         
@@ -974,7 +999,10 @@ classdef SRM1Display < handle
             % Set up the layout of the figure.
             app.MapAxes = axes; %('Units', 'pixels', ... 'OuterPosition', app.MapPosition);
             set(app.MapAxes, 'Color', app.BackgroundColor)
-            app.MapView = MapViewer('Directory', app.BackgroundMapDirectory, 'Axes', app.MapAxes, 'Extent', app.SetMapExtents);
+            app.MapView = MapViewer('Directory', app.BackgroundMapDirectory, 'Axes', app.MapAxes, 'Extent', app.FullExtents);
+            XLim_ = [app.SetMapExtents(1), app.SetMapExtents(2)];
+            YLim_ = [app.SetMapExtents(3), app.SetMapExtents(4)];
+            app.MapView.ZoomToBounds(XLim_, YLim_, 'RetainAspectRatio', 0) 
             hold(app.MapAxes, 'on')
 
             set(app.Figure, 'Visible', 'on')
@@ -1005,12 +1033,18 @@ classdef SRM1Display < handle
              dcm_obj = datacursormode(app.Figure);
              set(dcm_obj, 'UpdateFcn', @app.UpdateToolTip, ...
                           'SnapToDataVertex', 'off')
+             h = zoom;
+             set(h,'ActionPostCallback', @app.ZoomInPostCallback);
+             h = pan;
+             set(h, 'ActionPostCallback', @app.ZoomInPostCallback);
              % Add a menu bar.
              % File
              FMenu = uimenu(app.Figure, 'Label', 'File');
                uimenu(FMenu, 'Label', 'Open...', 'Accelerator', 'O', 'Callback', @app.OpenModel, 'Enable', 'on');
                uimenu(FMenu, 'Label', 'Save...', 'Accelerator', 'S', 'Callback', @app.SaveModel, 'Enable', 'on');
-               uimenu(FMenu, 'Label', 'Export...', 'Accelerator', 'S', 'Separator', 'on', 'Callback', @app.ExportModel, 'Enable', 'on');
+               EMenu = uimenu(FMenu, 'Label', 'Export', 'Separator', 'on');
+                 app.FMenu.ExportPoint = uimenu(EMenu, 'Label', 'Point Concentrations', 'Callback', @app.ExportModel, 'Enable', 'on');
+                 app.FMenu.ExportRoad = uimenu(EMenu, 'Label', 'Road Concentrations', 'Callback', @app.ExportModel, 'Enable', 'on');
 
              CMenu = uimenu(app.Figure, 'Label', 'Control');
                
@@ -1105,8 +1139,15 @@ classdef SRM1Display < handle
             app.Model.SaveModel
         end % function SaveModel(app, ~, ~)
         
-        function ExportModel(app, ~, ~)
-            app.Model.ExportPointConcentrationShapeFile
+        function ExportModel(app, Sender, ~)
+            switch Sender
+                case app.FMenu.ExportPoint
+                    app.Model.ExportPointConcentrationShapeFile
+                case app.FMenu.ExportRoad
+                    app.Model.ExportRoadConcentrationShapeFile
+                otherwise
+                    error('error')
+            end
         end % function ExportModel(app, ~, ~)
         
         function txt = UpdateToolTip(app, ~, event_obj)
@@ -1124,6 +1165,17 @@ classdef SRM1Display < handle
                     sprintf('Concentration: %.2f ug/m3', Conc)};
             txt = Text;
         end % function UpdateToolTip(app, ~, ~)
+        
+        function ZoomInPostCallback(app, ~, evd)
+            try
+                XLim_ = get(evd.Axes,'XLim');
+                YLim_ = get(evd.Axes,'YLim');
+                app.MapView.ZoomToBounds(XLim_, YLim_);
+            catch err
+                err %#ok<NOPRT>
+                rethrow(err)
+            end
+        end % function ZoomInPostCallback(app, ~, evd)
         
         function SwitchPollutant(app, Sender, ~)
             switch Sender
@@ -1312,7 +1364,7 @@ classdef SRM1Display < handle
                                 PointXs(NumScalings*PtI - ScalingI + 1) = Loc(1);
                                 PointYs(NumScalings*PtI - ScalingI + 1) = Loc(2);
                                 PointTypes{NumScalings*PtI - ScalingI + 1} = Types{ScalingI};
-                                PointNames{NumScalings*PtI - ScalingI + 1} = sprintf('%s_Pt%03d', R.NAME, NumScalings*PtI - ScalingI + 1);
+                                PointNames{NumScalings*PtI - ScalingI + 1} = sprintf('%s_Pt%03d', R.ROADNAME, NumScalings*PtI - ScalingI + 1);
                             end
                         end
                         NumPts = numel(PointXs);
