@@ -1,0 +1,48 @@
+ant:
+<ant>
+  <mkdir dir="C:\Users\edward.barratt\Documents\MATLAB\SRM1Display\for_redistribution" />
+  <mkdir dir="C:\Users\edward.barratt\Documents\MATLAB\SRM1Display\for_testing" />
+</ant>
+mcc -C -o SRM1Display -W WinMain:SRM1Display -T link:exe -d C:\Users\edward.barratt\Documents\MATLAB\SRM1Display\for_testing -v C:\Users\edward.barratt\Documents\MATLAB\InstalledPackages\SRM1\versions\Dev\SRM1Display.m 
+[Warning: Executing startup failed in matlabrc.
+This indicates a potentially serious problem in your MATLAB setup, which should
+be resolved as soon as possible.  Error detected was:
+MATLAB:undefinedVarOrClass
+Undefined variable "PackageManager" or class
+"PackageManager.Install.setRootPath".] 
+[> In matlabrc at 192] 
+Compiler version: 5.0 (R2013b)
+Dependency analysis by DEPFUN.
+Processing C:\Program Files\MATLAB\R2013b\toolbox\matlab\win64\mcc.enc
+Processing C:\Program Files\MATLAB\R2013b\toolbox\map\win64\mcc.enc
+Processing C:\Program Files\MATLAB\R2013b\toolbox\shared\maputils\win64\mcc.enc
+Processing C:\Program Files\MATLAB\R2013b\toolbox\shared\mapgeodesy\win64\mcc.enc
+Processing include files...
+2 item(s) added.
+Processing directories installed with MCR...
+The file C:\Users\edward.barratt\Documents\MATLAB\SRM1Display\for_testing\mccExcludedFiles.log contains a list of functions excluded from the CTF archive.
+0 item(s) added.
+Generating MATLAB path for the compiled application...
+Created 75 path items.
+[Warning: Adding path
+"C:\Users\edward.barratt\Documents\MATLAB\InstalledPackages\SRM1\versions\Dev"
+to Compiler path instance.] 
+Parsing file "C:\Users\edward.barratt\Documents\MATLAB\InstalledPackages\SRM1\versions\Dev\SRM1Display.m"
+	(Referenced from: "Compiler Command Line").
+Parsing file "C:\Program Files\MATLAB\R2013b\toolbox\compiler\deploy\deployprint.m"
+	(Referenced from: "Compiler Command Line").
+Parsing file "C:\Program Files\MATLAB\R2013b\toolbox\compiler\deploy\printdlg.m"
+	(Referenced from: "Compiler Command Line").
+Deleting 4 temporary MEX authorization files.
+Removing: 'C:\Users\EDWARD~1.BAR\AppData\Local\Temp\mathworks_tmp_14320_26776_14320.auth'.
+Removing: 'C:\Users\EDWARD~1.BAR\AppData\Local\Temp\mathworks_tmp_14320_3893_14320.auth'.
+Removing: 'C:\Users\EDWARD~1.BAR\AppData\Local\Temp\mathworks_tmp_14320_11589_14320.auth'.
+Removing: 'C:\Users\EDWARD~1.BAR\AppData\Local\Temp\mathworks_tmp_14320_27728_14320.auth'.
+Generating file "C:\Users\edward.barratt\Documents\MATLAB\SRM1Display\for_testing\readme.txt".
+Packaging...
+Adding custom icon C:\Program Files\MATLAB\R2013b\toolbox\compiler\Resources\default_icon.ico to C:\Users\edward.barratt\Documents\MATLAB\SRM1Display\for_testing\SRM1Display.exe.
+Attempting to embed the CTF archive into your application $C:\Users\edward.barratt\Documents\MATLAB\SRM1Display\for_testing\SRM1Display.exe.
+Finished embedding CTF archive. Deleting the external CTF archive.
+Creating the bundle...
+Web based installer created at C:\Users\edward.barratt\Documents\MATLAB\SRM1Display\for_redistribution\SRM1DisplayInstaller_web.exe.
+Packaging complete.
