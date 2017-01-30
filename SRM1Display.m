@@ -1212,7 +1212,7 @@ classdef SRM1Display < handle
                             return
                         end
                         % Forth, specify calculation points.
-                        NewModel = SRM1Display.SpecifyPoints(ShapeFile, 'EmissionFactorCatalogue', EFCFile);
+                        NewModel = SRM1Display.SpecifyPoints('EmissionFactorCatalogue', EFCFile);
                         NewModel.ImportRoadNetwork(ShapeFile);
                         % Fifth, Specify a few parameters.
                         Parameters = SRM1.SimpleSettings.RequestValues;
