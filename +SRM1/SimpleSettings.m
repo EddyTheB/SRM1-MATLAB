@@ -29,11 +29,11 @@ classdef SimpleSettings < handle
         function app = SimpleSettings(varargin)
             Options.WindSpeed = 4;
             Options.Backgrounds = struct;
-            Options.Backgrounds.O3 = 44;
-            Options.Backgrounds.PM10 = 12;
-            Options.Backgrounds.PM25 = 9;
-            Options.Backgrounds.NO2 = 21;
-            Options.Backgrounds.NOx = 36;
+            Options.Backgrounds.O3 = 42;
+            Options.Backgrounds.PM10 = 11;
+            Options.Backgrounds.PM25 = 7;
+            Options.Backgrounds.NO2 = 26;
+            Options.Backgrounds.NOx = 41;
             
             app.Results.WindSpeed = -999;
             app.Results.Background.O3 = -999;

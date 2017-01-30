@@ -439,8 +439,15 @@ classdef SettingsDialogue < handle
                     NewValue = round(NewValue*10)/10;
                     app.DisplayObject.CalculationDistance = NewValue;
                 case app.RoadConcPanel.Number
-                    NewValue = str2double(get(Sender, 'String'));
-                    %NewValue = ReadStringValue(NewValue);
+                    NewValue = get(Sender, 'String');
+                    NewValue = strtrim(NewValue);
+                    if ismember(NewValue(end), {'l', 'j'})
+                        NewValue = nan;
+                    elseif isequal(NewValue(end), 'm')
+                        NewValue = NewValue(1:end-1);
+                        NewValue = strtrim(NewValue);
+                    end
+                    NewValue = str2double(NewValue);
                     if isfinite(NewValue)
                         % Round to 2 decimal places.
                         NewValue = round(NewValue*100)/100;

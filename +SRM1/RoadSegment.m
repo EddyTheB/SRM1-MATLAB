@@ -158,7 +158,7 @@ classdef RoadSegment < handle
                 % Road Name Parameter
                 RoadNamePossibilities = {'Road_Name', 'RoadName'};
                 for RTPi = 1:numel(RoadNamePossibilities)
-                    RTP = RoadTypePossibilities{RTPi};
+                    RTP = RoadNamePossibilities{RTPi};
                     if ismember(RTP, AttributeNames)
                         obj.RoadName = Options.Attributes.(RTP);
                         break
@@ -401,15 +401,15 @@ classdef RoadSegment < handle
         end % function val = get.EmissionFactors(obj)
         
         function val = get.Emissions(obj)
+            % Emission factors are in g km-1 s-1 veh-1
+            % So EE and ES below are g km-1 s-1
             Ems = struct;
             for PI = 1:numel(obj.PollutantsAllowed)
                 P = obj.PollutantsAllowed{PI};
                 EE = obj.Emit_Single(P, obj.SpeedClassCorrect);
                 ES = obj.Emit_Single(P, obj.EmissionFactors.StagnantSpeedClass);
-                EE = (1000/(24))*(1 - obj.Stagnation) * EE;
-                ES = (1000/(24))*obj.Stagnation * ES;
-                %EE = (1000/(24*3600))*(1 - obj.Stagnation) * EE;
-                %ES = (1000/(24*3600))*obj.Stagnation * ES;
+                EE = (1 - obj.Stagnation) * EE;
+                ES = obj.Stagnation * ES;
                 obj.EmissionsBreakdown.(P) = EE + ES;
                 Ems.(P) = sum(EE + ES);
             end

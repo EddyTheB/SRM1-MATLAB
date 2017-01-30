@@ -160,16 +160,24 @@ classdef SRM1Model < handle
     
     methods
         %% Constructor
-        function obj = SRM1Model()
+        function obj = SRM1Model(varargin)
+            Options.EmissionFactorCatalogue = 'Default';
+            Options = checkArguments(Options, varargin);
+            EFFile = Options.EmissionFactorCatalogue;
             % Get the dispersion coefficients.
             [~, ~, ~, ~, obj.DispersionCoefficients] = SRM1.GetDispersionCoefficients('Narrow Canyon');
             % Get the emission factor catalogue.
-            if isequal(obj.EmissionFactorCatalogue, 'NotSet')
+            if isequal(EFFile, 'Default')
                 [dirEF, ~, ~] = fileparts(which('EmissionFactorsCat'));
                 StandardEFFile = [dirEF, '\ProcessedData\StandardEmissionFactorCatalogue.efc'];
                 obj.EmissionFactorCatalogue = EmissionFactorsCat(StandardEFFile);
-                [obj.EmissionFactorYear, ~] = datevec(now);
+            else
+                obj.EmissionFactorCatalogue = EmissionFactorsCat(EFFile);
             end
+            [YY, ~] = datevec(now);
+            obj.EmissionFactorYear = YY - 1;
+            obj.EmissionFactorYear
+            obj.EmissionFactorCatalogue
         end % function obj = SRM1Model()
         
         %% Getters

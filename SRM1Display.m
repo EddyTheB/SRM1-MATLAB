@@ -140,15 +140,13 @@ classdef SRM1Display < handle
             
             % Build the viewer
             app.BuildViewer
-
             % Plot the modelled values.
             app.PlottedPoints = scatter(app.PtXs, app.PtYs, app.PtSize, app.PointConcentrations, 'filled');
-
             % Plot the road network.
             app.PlottedRoads = plot(app.MapAxes, app.Model.RoadNetwork.XVertices', app.Model.RoadNetwork.YVertices', 'Color', app.StandardRoadColor, 'LineWidth', app.RoadPlotWidth, 'uicontextmenu', app.RCMenu);
             app.RoadLegend = legend(app.PlottedRoads(1), 'Roads', 'Location', 'southwest');
-
             % Decide which parts will be visible.
+            app.MapView
             app.MapView.PlotMapImages = app.DisplayBackgroundMap;
             app.MapView.PlotGridLines = app.DisplayGrid;
             set(app.PlottedPoints, 'Visible', onOrOff(app.DisplayModelledPointConcentrations))
@@ -199,16 +197,6 @@ classdef SRM1Display < handle
             if ~isequal(val, OldClassName)
                 app.Model.EmissionFactorClassName = val;
             end
-            % Should Stagnation be enabled? WALLY
-%             
-%             if isequal(val, 'NAEI')
-%                 set(app.RMenu.Stagnation, 'Enable', 'off');
-%                 if isequal(app.RoadColorMode, 'Stagnation')
-%                     app.RoadColorMode = 'SimpleLine';
-%                 end
-%             else
-%                 set(app.RMenu.Stagnation, 'Enable', 'on');
-%             end
         end % function set.EmissionFactorClassName(app, val)
         
         function val = get.PtXs(app)
@@ -505,6 +493,7 @@ classdef SRM1Display < handle
         end % function set.BackgroundO3(app, val)
         
         function set.RoadColorMode(app, val)
+            % Wally
             if ~isequal(val, app.RoadColorModeP)
                 if isequal(val, 'ForceChange')
                     % This will force the colours to change.
@@ -512,24 +501,12 @@ classdef SRM1Display < handle
                 end
                 app.RoadColorModeP = val;
                 
-%                 % Turn all ticks off.
-%                 AllRMenuOptionNames = fieldnames(app.RMenu);
-%                 AllRMenuOption = nan(1, numel(AllRMenuOptionNames)-1);
-%                 Rj = 0;
-%                 for Ri = 1:numel(AllRMenuOptionNames)
-%                     R = AllRMenuOptionNames{Ri};
-%                     if ~isequal(R, 'Menu')
-%                         Rj = Rj + 1;
-%                         AllRMenuOption(Rj) = app.RMenu.(R);
-%                     end
-%                 end
-%                 set(AllRMenuOption, 'Checked', 'off')
-                
                 switch val
                     case 'SimpleLine'
                         set(app.PlottedRoads, 'Color', app.StandardRoadColor)
                         RHs = app.PlottedRoads(1);
                         RSs = {'Roads'};
+                        app.RoadPlotWidth = 1;
                         ColorsDone = 1;
                     case 'RoadClass'
                         RoadClassStrings = {'Wide Canyon', 'Narrow Canyon', 'One Sided', 'Open Road'};
@@ -549,22 +526,23 @@ classdef SRM1Display < handle
                                 RSs{end+1} = RoadClassStrings{SC}; %#ok<AGROW>
                             end
                         end 
+                        app.RoadPlotWidth = 4;
                     case 'SpeedClass'
                         Colors = [1, 0.5, 0; ...  % Red for stagnated 
                                   1, 0.5, 0; ...  % Orange for normal
                                   0, 0  , 1; ...  % Blue for smooth
                                   0, 1  , 0];     % Green for large roads
-                        switch app.EmissionFactorClassName
-                            case 'Dutch'
-                                SpeedClasses = app.Model.RoadNetwork.SpeedClasses;
-                                SpeedClassStrings = {'Stagnated', 'Normal City', 'Smooth City', 'Large Roads'};
-                            case 'NAEI'
-                                SpeedClasses = ones(1, app.Model.RoadNetwork.NumRoads);
-                                Speeds = app.Model.RoadNetwork.Speeds;
-                                SpeedClasses(Speeds >= 15) = 2;
-                                SpeedClasses(Speeds >= 30) = 3;
-                                SpeedClasses(Speeds >= 45) = 4;
-                                SpeedClassStrings = {'< 15 km/s', '15 - 30 km/s', '30 - 45 km/s', '> 45 km/s'};
+                        SpeedClassCorrect = app.Model.RoadNetwork.RoadSegments(1).SpeedClassCorrect;
+                        if ismember(SpeedClassCorrect, {'Stagnated', 'Normal', 'Smooth', 'LargeRoad'})
+                            SpeedClasses = app.Model.RoadNetwork.SpeedClasses;
+                            SpeedClassStrings = {'Stagnated', 'Normal City', 'Smooth City', 'Large Roads'};
+                        else
+                            SpeedClasses = ones(1, app.Model.RoadNetwork.NumRoads);
+                            Speeds = app.Model.RoadNetwork.Speeds;
+                            SpeedClasses(Speeds >= 15) = 2;
+                            SpeedClasses(Speeds >= 30) = 3;
+                            SpeedClasses(Speeds >= 45) = 4;
+                            SpeedClassStrings = {'< 15 km/s', '15 - 30 km/s', '30 - 45 km/s', '> 45 km/s'};
                         end
                         RoadColors = Colors(SpeedClasses, :);
                         RHs = [];
@@ -576,6 +554,7 @@ classdef SRM1Display < handle
                                 RSs{end+1} = SpeedClassStrings{SC}; %#ok<AGROW>
                             end
                         end 
+                        app.RoadPlotWidth = 4;
                         ColorsDone = 0;
                     case 'Stagnation'
                         Colors = [0.7, 0.7, 0.9; ...  % Blue Grey
@@ -619,6 +598,7 @@ classdef SRM1Display < handle
                             end
                         end
                         RoadColors = Colors(StagnationClasses, :);
+                        app.RoadPlotWidth = 4;
                         ColorsDone = 0;
                     case 'Traffic'
                         Colors = [  0,   0, 1; ...    % Blue
@@ -657,6 +637,7 @@ classdef SRM1Display < handle
                         end
                         RSs{end} = sprintf('%s AADF', RSs{end});
                         RoadColors = Colors(TrafficClasses, :);
+                        app.RoadPlotWidth = 4;
                         ColorsDone = 0;
                     case 'Emissions'
                         Colors = [  0,   0, 1; ...    % Blue
@@ -694,8 +675,9 @@ classdef SRM1Display < handle
                                 RSs{end+1} = sprintf('%.*f to %.*f', DecPlaces(A), A, DecPlaces(B), B); %#ok<AGROW>
                             end
                         end
-                        RSs{end} = sprintf('%s ug/ms', RSs{end});
+                        RSs{end} = sprintf('%s g/km s', RSs{end});
                         RoadColors = Colors(EmissionClasses, :);                        
+                        app.RoadPlotWidth = 4;
                         ColorsDone = 0;
                     case 'Concentration'
                         Colors = app.CMapRGBs;
@@ -721,6 +703,7 @@ classdef SRM1Display < handle
                         RSs{end} = sprintf('%s ug/m3', RSs{end});
                         ConcentrationClasses(ConcentrationClasses == -999) = 1;
                         RoadColors = Colors(ConcentrationClasses, :);
+                        app.RoadPlotWidth = 4;
                         ColorsDone = 0;
                     otherwise
                             error('SRM1Display:SetRoadColorMode:WrongMode', 'RoadColorMode must be one of ''SimpleMode'', ''Concentration'', ''RoadClass'', or ''SpeedClass''.')
@@ -1039,10 +1022,10 @@ classdef SRM1Display < handle
              set(h, 'ActionPostCallback', @app.ZoomInPostCallback);
              % Add a menu bar.
              % File
-             FMenu = uimenu(app.Figure, 'Label', 'File');
-               uimenu(FMenu, 'Label', 'Open...', 'Accelerator', 'O', 'Callback', @app.OpenModel, 'Enable', 'on');
-               uimenu(FMenu, 'Label', 'Save...', 'Accelerator', 'S', 'Callback', @app.SaveModel, 'Enable', 'on');
-               EMenu = uimenu(FMenu, 'Label', 'Export', 'Separator', 'on');
+             FMenu_ = uimenu(app.Figure, 'Label', 'File');
+               uimenu(FMenu_, 'Label', 'Open...', 'Accelerator', 'O', 'Callback', @app.OpenModel, 'Enable', 'on');
+               uimenu(FMenu_, 'Label', 'Save...', 'Accelerator', 'S', 'Callback', @app.SaveModel, 'Enable', 'on');
+               EMenu = uimenu(FMenu_, 'Label', 'Export', 'Separator', 'on');
                  app.FMenu.ExportPoint = uimenu(EMenu, 'Label', 'Point Concentrations', 'Callback', @app.ExportModel, 'Enable', 'on');
                  app.FMenu.ExportRoad = uimenu(EMenu, 'Label', 'Road Concentrations', 'Callback', @app.ExportModel, 'Enable', 'on');
 
@@ -1223,10 +1206,15 @@ classdef SRM1Display < handle
                     if isequal(ShapeFile, 0)
                         NewModel = SRM1Display.SetUpMenu();
                     else
-                        % Third, specify calculation points.
-                        NewModel = SRM1Display.SpecifyPoints(ShapeFile);
+                        % Third, specify the emission factor catalogue.
+                        EFCFile = SRM1Display.SpecifyEmissionFactorCatalogue;
+                        if isequal(EFCFile, 0)
+                            return
+                        end
+                        % Forth, specify calculation points.
+                        NewModel = SRM1Display.SpecifyPoints(ShapeFile, 'EmissionFactorCatalogue', EFCFile);
                         NewModel.ImportRoadNetwork(ShapeFile);
-                        % Fourth, Specify a few parameters.
+                        % Fifth, Specify a few parameters.
                         Parameters = SRM1.SimpleSettings.RequestValues;
                         NewModel.AverageWindSpeed = Parameters.WindSpeed;
                         NewModel.BackgroundO3 = Parameters.Background.O3;
@@ -1234,12 +1222,12 @@ classdef SRM1Display < handle
                         NewModel.BackgroundPM25 = Parameters.Background.PM25;
                         NewModel.BackgroundNO2 = Parameters.Background.NO2;
                         NewModel.BackgroundNOx = Parameters.Background.NOx;
-                        % Fifth, specify a folder for background maps.
+                        % Sixth, specify a folder for background maps.
                         PP = uigetdir(pwd, 'Specify a folder containing background map RASTER files.');
                         if ~isequal(PP, 0)
                             NewModel.BackgroundMapDirectory = PP;
                         end
-                        % Sixth, Specify save location.
+                        % Seventh, Specify save location.
                         [FF, PP] = uiputfile('UnnamedModel.srm1', 'Specify save location for new model');
                         if FF == 0
                             NewModel = 0;
@@ -1278,9 +1266,12 @@ classdef SRM1Display < handle
             end
         end % function ShapeFile = GetShapeFile()
         
-        function NewModel = SpecifyPoints(ShapeFile)
+        function NewModel = SpecifyPoints(varargin)
             % Ask the user if they would like to specify their own points,
             % or create some automatically based on the road network.
+            Options = struct;
+            Options.EmissionFactorCatalogue = 'Default';
+            Options = checkArguments(Options, varargin);
             answer = questdlg('Step 2. Specify calculation points. Would you like to specify a shape file, or would you prefer to create a point network based on the road network.', 'Create New Model', 'Open', 'None', 'Open');
             switch answer
                 case 'Open'
@@ -1289,107 +1280,123 @@ classdef SRM1Display < handle
                         NewModel = SRM1Display.SpecifyPoints();
                     else
                         ShapeFile = [PP, FF];
-                        NewModel = SRM1Model;
+                        NewModel = SRM1Model('EmissionFactorCatalogue', Options.EmissionFactorCatalogue);
                         NewModel.ImportCalculationPoints(ShapeFile);
                     end
                 case 'None'
-                    NewModel = SRM1Model;
+                    NewModel = SRM1Model('EmissionFactorCatalogue', Options.EmissionFactorCatalogue);
                 case 'New'
-                    % Create points beside vertices of roads, and mid way 
-                    % between vertices, at half road-widths distance from
-                    % the centre (i.e., at the road edge), and at 2 times
-                    % road_widths distance from the centre.
-                    %tic
-                    S = shaperead(ShapeFile);
-                    PtXs = [];
-                    PtYs = [];
-                    PtTypes = {};
-                    PtNames = {};
-                    for Ri = 1:numel(S)
-                        R = S(Ri);
-                        Width = R.WIDTH;
-                        if sum(isnan(R.X)) > 1
-                            error('SRM1Display:SpecifyPoints:TooManyNan', 'Too many NANs, you need to come up with a way of spliting polylines about nans.')
-                        end
-                        PtXs = R.X(1:end-1); % Trim the nan's from the end.
-                        PtYs = R.Y(1:end-1);
-                        NumPts = numel(PtXs);
-                        % Add points mid way between vertices.
-                        %PtXs_ = ones(1, NumPts*2 - 1); PtYs_ = ones(1, NumPts*2 - 1);
-                        %for PtI = 1:NumPts
-                        %    PtXs_(PtI*2-1) = PtXs(PtI);
-                        %    PtYs_(PtI*2-1) = PtYs(PtI);
-                        %    if PtI ~= NumPts
-                        %        PtXs_(PtI*2) = mean([PtXs(PtI), PtXs(PtI+1)]);
-                        %        PtYs_(PtI*2) = mean([PtYs(PtI), PtYs(PtI+1)]);
-                        %    end
-                        %end
-                        %PtXs = PtXs_; PtYs = PtYs_;
-                        %NumPts = numel(PtXs);
-                        ScalingsToDo = [-2, -1, 0, 1, 2];
-                        Types = {'OffRoad', 'RoadEdge', 'RoadCentre', 'RoadEdge', 'OffRoad'};
-                        NumScalings = numel(ScalingsToDo);
-                        PointXs = ones(1, NumPts*NumScalings);
-                        PointYs = ones(1, NumPts*NumScalings);
-                        PointTypes = cell(1, NumPts*NumScalings);
-                        PointNames = cell(1, NumPts*NumScalings);
-                        for PtI = 1:NumPts
-                            % Get a unit vector pointing along the road at
-                            % this point.
-                            Xp = PtXs(PtI); Yp = PtYs(PtI);
-                            if PtI == 1
-                                Vector = [PtXs(PtI+1) - Xp, PtYs(PtI+1) - Yp];
-                                Vector = Vector/norm(Vector);
-                            elseif PtI == NumPts
-                                Vector = [Xp - PtXs(PtI-1), Yp - PtYs(PtI-1)];
-                                Vector = Vector/norm(Vector);
-                            else
-                                Vector1 = [Xp - PtXs(PtI-1), Yp - PtYs(PtI-1)];
-                                Vector1 = Vector1/norm(Vector1);
-                                Vector2 = [PtXs(PtI+1) - Xp, PtYs(PtI+1) - Yp];
-                                Vector2 = Vector2/norm(Vector2);
-                                Vector = Vector1 + Vector2;
-                                Vector = Vector/norm(Vector);
-                            end
-                            % And rotate it 90 degrees.
-                            Vector = Vector*[0, -1; 1, 0];
-                            % Make it's length equal to half the road
-                            % width.
-                            Vector = Vector*Width*0.5;
-                            % And create the calculation points.
-                            for ScalingI = 1:NumScalings
-                                Scaling = ScalingsToDo(ScalingI);
-                                Loc = [Xp, Yp] + Vector*Scaling;
-                                PointXs(NumScalings*PtI - ScalingI + 1) = Loc(1);
-                                PointYs(NumScalings*PtI - ScalingI + 1) = Loc(2);
-                                PointTypes{NumScalings*PtI - ScalingI + 1} = Types{ScalingI};
-                                PointNames{NumScalings*PtI - ScalingI + 1} = sprintf('%s_Pt%03d', R.ROADNAME, NumScalings*PtI - ScalingI + 1);
-                            end
-                        end
-                        NumPts = numel(PointXs);
-                        for PtI = 1:NumPts
-                            %PtXs{end+1} = PointXs(PtI); %#ok<AGROW>
-                            %PtYs{end+1} = PointYs(PtI); %#ok<AGROW>
-                            PtXs(end+1) = PointXs(PtI); %#ok<AGROW>
-                            PtYs(end+1) = PointYs(PtI); %#ok<AGROW>
-                            PtTypes{end+1} = PointTypes{PtI}; %#ok<AGROW>
-                            PtNames{end+1} = PointNames{PtI}; %#ok<AGROW>
-                        end
-                        %figure()
-                        %axis equal
-                        %hold on
-                        %plot(R.X, R.Y)
-                        %scatter(PointXs, PointYs)
-                    end
-                    %Grid = [cell2mat(PtXs); cell2mat(PtYs)];
-                    %size(Grid)
-                    Grid = [PtXs; PtYs];
-                    NewModel = SRM1Model;
-                    %toc
-                    NewModel.ImportCalculationPoints(Grid, 'PointNames', PtNames, 'PointTypes', PtTypes);           
+                    error('should not be called')
+%                     % Create points beside vertices of roads, and mid way 
+%                     % between vertices, at half road-widths distance from
+%                     % the centre (i.e., at the road edge), and at 2 times
+%                     % road_widths distance from the centre.
+%                     %tic
+%                     S = shaperead(ShapeFile);
+%                     PtXs = [];
+%                     PtYs = [];
+%                     PtTypes = {};
+%                     PtNames = {};
+%                     for Ri = 1:numel(S)
+%                         R = S(Ri);
+%                         Width = R.WIDTH;
+%                         if sum(isnan(R.X)) > 1
+%                             error('SRM1Display:SpecifyPoints:TooManyNan', 'Too many NANs, you need to come up with a way of spliting polylines about nans.')
+%                         end
+%                         PtXs = R.X(1:end-1); % Trim the nan's from the end.
+%                         PtYs = R.Y(1:end-1);
+%                         NumPts = numel(PtXs);
+%                         % Add points mid way between vertices.
+%                         %PtXs_ = ones(1, NumPts*2 - 1); PtYs_ = ones(1, NumPts*2 - 1);
+%                         %for PtI = 1:NumPts
+%                         %    PtXs_(PtI*2-1) = PtXs(PtI);
+%                         %    PtYs_(PtI*2-1) = PtYs(PtI);
+%                         %    if PtI ~= NumPts
+%                         %        PtXs_(PtI*2) = mean([PtXs(PtI), PtXs(PtI+1)]);
+%                         %        PtYs_(PtI*2) = mean([PtYs(PtI), PtYs(PtI+1)]);
+%                         %    end
+%                         %end
+%                         %PtXs = PtXs_; PtYs = PtYs_;
+%                         %NumPts = numel(PtXs);
+%                         ScalingsToDo = [-2, -1, 0, 1, 2];
+%                         Types = {'OffRoad', 'RoadEdge', 'RoadCentre', 'RoadEdge', 'OffRoad'};
+%                         NumScalings = numel(ScalingsToDo);
+%                         PointXs = ones(1, NumPts*NumScalings);
+%                         PointYs = ones(1, NumPts*NumScalings);
+%                         PointTypes = cell(1, NumPts*NumScalings);
+%                         PointNames = cell(1, NumPts*NumScalings);
+%                         for PtI = 1:NumPts
+%                             % Get a unit vector pointing along the road at
+%                             % this point.
+%                             Xp = PtXs(PtI); Yp = PtYs(PtI);
+%                             if PtI == 1
+%                                 Vector = [PtXs(PtI+1) - Xp, PtYs(PtI+1) - Yp];
+%                                 Vector = Vector/norm(Vector);
+%                             elseif PtI == NumPts
+%                                 Vector = [Xp - PtXs(PtI-1), Yp - PtYs(PtI-1)];
+%                                 Vector = Vector/norm(Vector);
+%                             else
+%                                 Vector1 = [Xp - PtXs(PtI-1), Yp - PtYs(PtI-1)];
+%                                 Vector1 = Vector1/norm(Vector1);
+%                                 Vector2 = [PtXs(PtI+1) - Xp, PtYs(PtI+1) - Yp];
+%                                 Vector2 = Vector2/norm(Vector2);
+%                                 Vector = Vector1 + Vector2;
+%                                 Vector = Vector/norm(Vector);
+%                             end
+%                             % And rotate it 90 degrees.
+%                             Vector = Vector*[0, -1; 1, 0];
+%                             % Make it's length equal to half the road
+%                             % width.
+%                             Vector = Vector*Width*0.5;
+%                             % And create the calculation points.
+%                             for ScalingI = 1:NumScalings
+%                                 Scaling = ScalingsToDo(ScalingI);
+%                                 Loc = [Xp, Yp] + Vector*Scaling;
+%                                 PointXs(NumScalings*PtI - ScalingI + 1) = Loc(1);
+%                                 PointYs(NumScalings*PtI - ScalingI + 1) = Loc(2);
+%                                 PointTypes{NumScalings*PtI - ScalingI + 1} = Types{ScalingI};
+%                                 PointNames{NumScalings*PtI - ScalingI + 1} = sprintf('%s_Pt%03d', R.ROADNAME, NumScalings*PtI - ScalingI + 1);
+%                             end
+%                         end
+%                         NumPts = numel(PointXs);
+%                         for PtI = 1:NumPts
+%                             %PtXs{end+1} = PointXs(PtI); %#ok<AGROW>
+%                             %PtYs{end+1} = PointYs(PtI); %#ok<AGROW>
+%                             PtXs(end+1) = PointXs(PtI); %#ok<AGROW>
+%                             PtYs(end+1) = PointYs(PtI); %#ok<AGROW>
+%                             PtTypes{end+1} = PointTypes{PtI}; %#ok<AGROW>
+%                             PtNames{end+1} = PointNames{PtI}; %#ok<AGROW>
+%                         end
+%                         %figure()
+%                         %axis equal
+%                         %hold on
+%                         %plot(R.X, R.Y)
+%                         %scatter(PointXs, PointYs)
+%                     end
+%                     %Grid = [cell2mat(PtXs); cell2mat(PtYs)];
+%                     %size(Grid)
+%                     Grid = [PtXs; PtYs];
+%                     NewModel = SRM1Model;
+%                     %toc
+%                     NewModel.ImportCalculationPoints(Grid, 'PointNames', PtNames, 'PointTypes', PtTypes);           
                 otherwise
                     NewModel = 0;
             end
         end % function NewModel = SpecifyPoints(ShapeFile)
+        
+        function EFCFile = SpecifyEmissionFactorCatalogue()
+            answer = questdlg('Step 2. Specify an emission factor catalogue file.', 'Specify emission factors', 'Open', 'Cancel', 'Open');
+            switch answer
+                case 'Open'
+                    [FF, PP] = uigetfile('*.efc', 'Select emission factor catalogue file.');
+                    if isequal(FF, 0)
+                        EFCFile = SRM1Display.SpecifyEmissionFactorCatalogue();
+                    else
+                        EFCFile = [PP, FF];
+                    end
+                otherwise
+                    EFCFile = 0;
+            end
+        end
     end % methods (Static)
 end
