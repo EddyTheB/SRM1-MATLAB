@@ -649,7 +649,7 @@ classdef SRM1Display < handle
                                     0,   0, 0];       % Black
                         EmissionClasses = -999*ones(1, app.Model.NumRoads);
                         EString = sprintf('Emissions%s', app.Pollutant);
-                        Emissions = app.Model.RoadNetwork.(EString);
+                        Emissions = app.Model.RoadNetwork.(EString)/1000;
                         MN = min(Emissions);
                         MX = max(Emissions);
                         Range = MX-MN;
@@ -675,7 +675,7 @@ classdef SRM1Display < handle
                                 RSs{end+1} = sprintf('%.*f to %.*f', DecPlaces(A), A, DecPlaces(B), B); %#ok<AGROW>
                             end
                         end
-                        RSs{end} = sprintf('%s g/km s', RSs{end});
+                        RSs{end} = sprintf('%s ug/km s', RSs{end});
                         RoadColors = Colors(EmissionClasses, :);                        
                         app.RoadPlotWidth = 4;
                         ColorsDone = 0;

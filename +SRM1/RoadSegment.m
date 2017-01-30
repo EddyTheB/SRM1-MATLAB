@@ -410,8 +410,8 @@ classdef RoadSegment < handle
                 ES = obj.Emit_Single(P, obj.EmissionFactors.StagnantSpeedClass);
                 EE = (1 - obj.Stagnation) * EE;
                 ES = obj.Stagnation * ES;
-                obj.EmissionsBreakdown.(P) = EE + ES;
-                Ems.(P) = sum(EE + ES);
+                obj.EmissionsBreakdown.(P) = (1000/24)*(EE + ES);
+                Ems.(P) = (1000/24)*sum(EE + ES);
             end
             val = Ems;
         end % function val = get.Emissions(obj)        
