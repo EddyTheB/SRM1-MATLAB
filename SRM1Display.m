@@ -17,13 +17,14 @@ classdef SRM1Display < handle
     
     
     properties
-        Figure
+        Instance
         MapAxes
         ColorBar
         %BackgroundMapDirectory = 'C:\Users\edward.barratt\Data\GIS_Data\AberdeenBackgroundMaps'      
     end % properties
     
     properties (Dependent)
+        Figure
         AverageWindSpeed
         BackgroundColor
         PlottedRoads
@@ -80,6 +81,7 @@ classdef SRM1Display < handle
     properties (Dependent, Hidden)
         SetMapExtents
         FigureName
+        FigTag
         CMapValues
     end % properties (Dependent, Hidden)
     
@@ -118,6 +120,7 @@ classdef SRM1Display < handle
         
         %% Constructor
         function app = SRM1Display(varargin)
+            app.Instance = sprintf('SRM1D_%s_%04d', datestr(now, 'yyyymmddHHMMSSFFF'), randi(9999));
             if nargin > 0
                 AssignedModel = varargin{1};
             else
@@ -137,21 +140,19 @@ classdef SRM1Display < handle
             end
             app.ModelP = AssignedModel;
             app.ModelP.DisplayObject = app;
-            
             % Build the viewer
             app.BuildViewer
             % Plot the modelled values.
-            app.PlottedPoints = scatter(app.PtXs, app.PtYs, app.PtSize, app.PointConcentrations, 'filled');
+            app.PlottedPoints = scatter(app.MapAxes, app.PtXs, app.PtYs, app.PtSize, app.PointConcentrations, 'filled');
             % Plot the road network.
             app.PlottedRoads = plot(app.MapAxes, app.Model.RoadNetwork.XVertices', app.Model.RoadNetwork.YVertices', 'Color', app.StandardRoadColor, 'LineWidth', app.RoadPlotWidth, 'uicontextmenu', app.RCMenu);
             app.RoadLegend = legend(app.PlottedRoads(1), 'Roads', 'Location', 'southwest');
             % Decide which parts will be visible.
-            app.MapView
+            %app.MapView
             app.MapView.PlotMapImages = app.DisplayBackgroundMap;
             app.MapView.PlotGridLines = app.DisplayGrid;
             set(app.PlottedPoints, 'Visible', onOrOff(app.DisplayModelledPointConcentrations))
             set(app.PlottedRoads, 'Visible', onOrOff(app.DisplayRoad))
-
             % Plot the color bar.
             app.DoColorMapAndBar
             if app.Model.NumPoints == 0
@@ -164,6 +165,14 @@ classdef SRM1Display < handle
         end % function app = SRM1Display(AssignedModel)
         
         %% Getters
+        function val = get.Figure(app)
+            val = findall(0, 'Tag', app.FigTag);
+        end % function val = get.figure(app)
+        
+        function val = get.FigTag(app)
+            val = sprintf('%s_MAIN', app.Instance);
+        end % function val = get.FigTag(app)
+        
         function val = get.AverageWindSpeed(app)
             val = app.Model.AverageWindSpeed;
         end % function val = get.AverageWindSpeed(app)
@@ -967,92 +976,88 @@ classdef SRM1Display < handle
     
     methods (Access = private)
         function BuildViewer(app)
-             % Create the app window.
-            app.Figure = figure('Position', app.FigurePos, ...
+            % Create the app window.
+            ff = figure('Position', app.FigurePos, ...
+                'handleVisibility', 'off', ...
                 'Visible', 'off', ...
                 'MenuBar', 'none', ...
                 'Name', app.FigureName, ...
                 'NumberTitle', 'off', ...
+                'Tag', app.FigTag, ...
                 'CloseRequestFcn', @app.CloseFigure); 
                  %'ResizeFcn', @app.FigureResizeCallBack, ... 'CloseRequestFcn', @app.CloseFigure, ...'pointer', 'watch', ...
-            movegui(app.Figure, 'onscreen')
-            
+            movegui(ff, 'onscreen')
             % Create the menu, and some buttons.
             app.MenusAndButtons
             % Set up the layout of the figure.
-            app.MapAxes = axes; %('Units', 'pixels', ... 'OuterPosition', app.MapPosition);
+            app.MapAxes = axes('Parent', ff); %('Units', 'pixels', ... 'OuterPosition', app.MapPosition);
             set(app.MapAxes, 'Color', app.BackgroundColor)
             app.MapView = MapViewer('Directory', app.BackgroundMapDirectory, 'Axes', app.MapAxes, 'Extent', app.FullExtents);
             XLim_ = [app.SetMapExtents(1), app.SetMapExtents(2)];
             YLim_ = [app.SetMapExtents(3), app.SetMapExtents(4)];
             app.MapView.ZoomToBounds(XLim_, YLim_, 'RetainAspectRatio', 0) 
             hold(app.MapAxes, 'on')
-
-            set(app.Figure, 'Visible', 'on')
+            set(ff, 'Visible', 'on')
             hold(app.MapAxes, 'on')
         end % function BuildViewer(app)
         
         function MenusAndButtons(app)
             %% Plot control buttons
             % Keep only the pan, zoom, and data cursor buttons.
-             set(app.Figure, 'Toolbar', 'figure');
-             ToolBar = findall(app.Figure, 'Type', 'uitoolbar');
-             Buttons = findall(ToolBar);
-             Buttons = Buttons(1:end-1); % Last B is uimenu, and it causes difficulties.
-             for B=Buttons'
-                 Type = get(B, 'Type');
-                 Tag = get(B, 'Tag');
-                 if ismember(Type, {'uitoggletool', 'uipushtool', 'uitogglesplittool'})
-                     if ~ismember(Tag, {'Exploration.DataCursor', 'Exploration.ZoomIn', ...
-                             'Exploration.ZoomOut', 'Exploration.Pan', ...
-                             'Exploratio_n.Brushing'})
-                         delete(B)
-                     end
-                 end
-             end
- 
-             % Get handles for the zoom and pan events.
-             % Change the behaviour of the tool tip button
-             dcm_obj = datacursormode(app.Figure);
-             set(dcm_obj, 'UpdateFcn', @app.UpdateToolTip, ...
-                          'SnapToDataVertex', 'off')
-             h = zoom;
-             set(h,'ActionPostCallback', @app.ZoomInPostCallback);
-             h = pan;
-             set(h, 'ActionPostCallback', @app.ZoomInPostCallback);
-             % Add a menu bar.
-             % File
-             FMenu_ = uimenu(app.Figure, 'Label', 'File');
-               uimenu(FMenu_, 'Label', 'Open...', 'Accelerator', 'O', 'Callback', @app.OpenModel, 'Enable', 'on');
-               uimenu(FMenu_, 'Label', 'Save...', 'Accelerator', 'S', 'Callback', @app.SaveModel, 'Enable', 'on');
-               EMenu = uimenu(FMenu_, 'Label', 'Export', 'Separator', 'on');
-                 app.FMenu.ExportPoint = uimenu(EMenu, 'Label', 'Point Concentrations', 'Callback', @app.ExportModel, 'Enable', 'on');
-                 app.FMenu.ExportRoad = uimenu(EMenu, 'Label', 'Road Concentrations', 'Callback', @app.ExportModel, 'Enable', 'on');
+            set(app.Figure, 'Toolbar', 'figure');
+            ToolBar = findall(app.Figure, 'Type', 'uitoolbar');
+            Buttons = findall(ToolBar);
+            Buttons = Buttons(1:end-1); % Last B is uimenu, and it causes difficulties.
+            for B=Buttons'
+                Type = get(B, 'Type');
+                Tag = get(B, 'Tag');
+                if ismember(Type, {'uitoggletool', 'uipushtool', 'uitogglesplittool'})
+                    if ~ismember(Tag, {'Exploration.DataCursor', 'Exploration.ZoomIn', ...
+                            'Exploration.ZoomOut', 'Exploration.Pan', ...
+                            'Exploratio_n.Brushing'})
+                        delete(B)
+                    end
+                end
+            end
 
-             CMenu = uimenu(app.Figure, 'Label', 'Control');
-               
-             % Pollutants
-             app.PMenu.Menu = uimenu(CMenu, 'Label', 'Pollutant');
-               app.PMenu.NO2  = uimenu(app.PMenu.Menu, 'Label', 'NO2', 'Checked', 'off', 'Callback', @app.SwitchPollutant);
-               app.PMenu.NOx  = uimenu(app.PMenu.Menu, 'Label', 'NOx', 'Checked', 'off', 'Callback', @app.SwitchPollutant);
-               app.PMenu.PM10 = uimenu(app.PMenu.Menu, 'Label', 'PM10', 'Checked', 'off', 'Callback', @app.SwitchPollutant);
-               app.PMenu.PM25 = uimenu(app.PMenu.Menu, 'Label', 'PM2.5', 'Checked', 'off', 'Callback', @app.SwitchPollutant);
-               set(app.PMenu.(app.Pollutant), 'Checked', 'on')
-                              
-             % Selection Mode
-             app.SMenu.Menu = uimenu(CMenu, 'Label', 'Road Selection Mode');
-               app.SMenu.Create = uimenu(app.SMenu.Menu, 'Label', 'Create New Selection', 'Checked', 'on', 'Accelerator', 'j', 'Callback', @app.ChangeSelectMode);
-               app.SMenu.Append = uimenu(app.SMenu.Menu, 'Label', 'Add To Selection', 'Checked', 'off', 'Accelerator', 'k', 'Callback', @app.ChangeSelectMode);
-               app.SMenu.Clear = uimenu(app.SMenu.Menu, 'Label', 'Clear Selection', 'Separator', 'on', 'Accelerator', 'l', 'Callback', @app.ClearSelection);
-               
-             uimenu(CMenu, 'Label', 'Settings', 'Separator', 'on', 'Callback', @app.RaiseSettings)
+            % Get handles for the zoom and pan events.
+            % Change the behaviour of the tool tip button
+            dcm_obj = datacursormode(app.Figure);
+            set(dcm_obj, 'UpdateFcn', @app.UpdateToolTip, ...
+                         'SnapToDataVertex', 'off')
+            h = zoom(app.Figure);
+            set(h,'ActionPostCallback', @app.ZoomInPostCallback);
+            h = pan(app.Figure);
+            set(h, 'ActionPostCallback', @app.ZoomInPostCallback);
+            % Add a menu bar.
+            % File
+            FMenu_ = uimenu(app.Figure, 'Label', 'File');
+              uimenu(FMenu_, 'Label', 'Open...', 'Accelerator', 'O', 'Callback', @app.OpenModel, 'Enable', 'on');
+              uimenu(FMenu_, 'Label', 'Save...', 'Accelerator', 'S', 'Callback', @app.SaveModel, 'Enable', 'on');
+              EMenu = uimenu(FMenu_, 'Label', 'Export', 'Separator', 'on');
+                app.FMenu.ExportPoint = uimenu(EMenu, 'Label', 'Point Concentrations', 'Callback', @app.ExportModel, 'Enable', 'on');
+                app.FMenu.ExportRoad = uimenu(EMenu, 'Label', 'Road Concentrations', 'Callback', @app.ExportModel, 'Enable', 'on');
+            CMenu = uimenu(app.Figure, 'Label', 'Control');
+            % Pollutants
+            app.PMenu.Menu = uimenu(CMenu, 'Label', 'Pollutant');
+              app.PMenu.NO2  = uimenu(app.PMenu.Menu, 'Label', 'NO2', 'Checked', 'off', 'Callback', @app.SwitchPollutant);
+              app.PMenu.NOx  = uimenu(app.PMenu.Menu, 'Label', 'NOx', 'Checked', 'off', 'Callback', @app.SwitchPollutant);
+              app.PMenu.PM10 = uimenu(app.PMenu.Menu, 'Label', 'PM10', 'Checked', 'off', 'Callback', @app.SwitchPollutant);
+              app.PMenu.PM25 = uimenu(app.PMenu.Menu, 'Label', 'PM2.5', 'Checked', 'off', 'Callback', @app.SwitchPollutant);
+              set(app.PMenu.(app.Pollutant), 'Checked', 'on')
+            % Selection Mode
+            app.SMenu.Menu = uimenu(CMenu, 'Label', 'Road Selection Mode');
+              app.SMenu.Create = uimenu(app.SMenu.Menu, 'Label', 'Create New Selection', 'Checked', 'on', 'Accelerator', 'j', 'Callback', @app.ChangeSelectMode);
+              app.SMenu.Append = uimenu(app.SMenu.Menu, 'Label', 'Add To Selection', 'Checked', 'off', 'Accelerator', 'k', 'Callback', @app.ChangeSelectMode);
+              app.SMenu.Clear = uimenu(app.SMenu.Menu, 'Label', 'Clear Selection', 'Separator', 'on', 'Accelerator', 'l', 'Callback', @app.ClearSelection);
+            uimenu(CMenu, 'Label', 'Settings', 'Separator', 'on', 'Callback', @app.RaiseSettings)
              
-             % Specify a uicontextmenu (right click menu)
-             app.RCMenu = uicontextmenu('Callback', @app.SelectRoad);
-             app.RCMenu_This = uimenu(app.RCMenu, 'Label', 'Specify scaling for this road', 'Enable', 'on', 'Callback', @app.SpecifyScaling);
-             app.RCMenu_Select  = uimenu(app.RCMenu, 'Label', 'Specify scaling for selected roads', 'Enable', 'off', 'Callback', @app.SpecifyScaling);
-             app.RCMenu_All  = uimenu(app.RCMenu, 'Label', 'Specify scaling for all roads', 'Enable', 'on', 'Callback', @app.SpecifyScaling);
-             
+            % Specify a uicontextmenu (right click menu)
+            app.RCMenu = uicontextmenu('Parent', app.Figure, ...
+                                       'Callback', @app.SelectRoad);
+            app.RCMenu_This = uimenu(app.RCMenu, 'Label', 'Specify scaling for this road', 'Enable', 'on', 'Callback', @app.SpecifyScaling);
+            app.RCMenu_Select  = uimenu(app.RCMenu, 'Label', 'Specify scaling for selected roads', 'Enable', 'off', 'Callback', @app.SpecifyScaling);
+            app.RCMenu_All  = uimenu(app.RCMenu, 'Label', 'Specify scaling for all roads', 'Enable', 'on', 'Callback', @app.SpecifyScaling);
         end % function MenusAndButtons(app)
         
         function CloseFigure(app, ~, ~)
@@ -1183,7 +1188,7 @@ classdef SRM1Display < handle
         end % function ChangeSelectMode(app, Sender, ~)        
         
         function DoColorMapAndBar(app)
-            colormap(app.ColorMap)
+            colormap(app.MapAxes, app.ColorMap)
             caxis(app.MapAxes, app.CAxisLimits)
             if ishghandle(app.ColorBar)
                 delete(app.ColorBar)

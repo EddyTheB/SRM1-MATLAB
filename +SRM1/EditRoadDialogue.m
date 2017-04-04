@@ -14,12 +14,13 @@ classdef EditRoadDialogue < handle
     % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     properties
-        Figure
         DisplayObject@SRM1Display = SRM1Display.empty
-        RoadNetwork = SRM1.RoadNetwork.empty 
+        RoadNetwork = SRM1.RoadNetwork.empty
     end % properties
     
     properties (Dependent)
+        Figure
+        FigTag
         RoadSegment
         RoadSegmentIndex
         RoadSegmentIndices
@@ -145,13 +146,15 @@ classdef EditRoadDialogue < handle
                     error('SRM1:EditRoadDialogue:fNumTooLarge', 'No available figure numbers left.')
                 end
             end
-            app.Figure = figure(fNum);
-            set(app.Figure, 'Position', app.Position, ...
-                'ToolBar', 'none',  ...
+            
+            figure('Position', app.Position, ...
+                'handleVisibility', 'off', ...
+                'Visible', 'on', ...
                 'MenuBar', 'none', ...
+                'ToolBar', 'none',  ...
                 'Name', 'Edit properties of road section', ...
                 'NumberTitle', 'off', ...
-                'Visible', 'on', ...
+                'Tag', app.FigTag, ...
                 'Pointer', 'watch', ...
                 'CloseRequestFcn', @app.CloseFunction);
             % Road Segment panel
@@ -401,6 +404,10 @@ classdef EditRoadDialogue < handle
         end % function app = EditRoadDialogue(varargin)
             
         %% Getters
+        function val = get.FigTag(app)
+            val = sprintf('%s_ROAD', app.DisplayObject.Instance);
+        end % function val = get.FigTag(app)
+        
         function val = get.RoadSegment(app)
             val = app.RoadNetwork.RoadSegments(app.RoadSegmentIndex);
         end % function val = get.RoadSegment(app)

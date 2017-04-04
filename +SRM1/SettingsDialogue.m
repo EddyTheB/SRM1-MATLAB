@@ -14,6 +14,7 @@ classdef SettingsDialogue < handle
     % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     properties
+        Instance
         Figure
         DisplayObject@SRM1Display = SRM1Display.empty
     end % properties
@@ -54,6 +55,7 @@ classdef SettingsDialogue < handle
     methods
         %% Constructor
         function app = SettingsDialogue(varargin)
+            %app.Instance = sprintf('SRM1D_%s_04d', datestr('yyyymmddHHMMSS'), randi(9999));
             Options.DisplayObject = 'NotSet';
             Options.Position = -999;
             Options = checkArguments(Options, varargin);
